@@ -19,6 +19,7 @@ staticfiles/
 # Editor
 .vscode/
 .idea/
+terminals/
 
 # Node later
 node_modules/

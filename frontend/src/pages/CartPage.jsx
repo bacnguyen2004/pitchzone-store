@@ -1,18 +1,306 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
+import bannerSlide2 from "../assets/banner-slide-2.jpg";
+import AnimateIn from "../components/AnimateIn";
+import { CartIcon, CheckIcon } from "../components/AuthIcons";
 import { deleteCartItem, getCart, updateCartItem } from "../api/cart";
 import { useAuth } from "../contexts/AuthContext";
 import { formatCurrency, getMainImage, resolveMediaUrl } from "../utils/format";
+import { buildProductsUrl } from "../utils/productFilters";
+import {
+  ChevronRightIcon,
+  EmptyBoxIcon,
+  HomeIcon,
+  ImagePlaceholderIcon,
+  MinusIcon,
+  PlusIcon,
+  TrashIcon,
+  TruckIcon,
+} from "../components/StoreIcons";
+
+const FREE_SHIPPING_THRESHOLD = 2_000_000;
+
+const CART_STEPS = [
+  { id: "cart", label: "Giỏ hàng" },
+  { id: "checkout", label: "Thanh toán", to: "/checkout" },
+  { id: "done", label: "Hoàn tất" },
+];
+
+function getCartItemMeta(item) {
+  const variant = item.variant;
+  const unitPrice = Number(
+    item.unit_price ?? variant?.effective_price ?? variant?.price ?? item.product?.price ?? 0,
+  );
+  const compareAt = Number(variant?.compare_at_price ?? 0);
+  const stock = variant?.stock ?? item.product?.stock ?? 0;
+  const lineTotal = Number(item.total_price ?? unitPrice * item.quantity);
+  const sizeLabel = variant?.size || variant?.name || null;
+
+  return { unitPrice, compareAt, stock, lineTotal, sizeLabel };
+}
+
+function CartSteps() {
+  const activeIndex = 0;
+
+  return (
+    <ol className="cart-steps">
+      {CART_STEPS.map((step, index) => {
+        const isCompleted = index < activeIndex;
+        const isActive = index === activeIndex;
+        const isLast = index === CART_STEPS.length - 1;
+
+        const dot = (
+          <span
+            className={`cart-step-dot ${
+              isCompleted ? "is-done" : isActive ? "is-active" : ""
+            }`}
+          >
+            {isCompleted ? <CheckIcon className="h-3.5 w-3.5" /> : index + 1}
+          </span>
+        );
+
+        const label = (
+          <span
+            className={`cart-step-label ${
+              isActive || isCompleted ? "is-emphasis" : ""
+            }`}
+          >
+            {step.label}
+          </span>
+        );
+
+        return (
+          <li key={step.id} className="cart-step">
+            {step.to && !isActive ? (
+              <Link to={step.to} className="cart-step-link">
+                {dot}
+                {label}
+              </Link>
+            ) : (
+              <span className="cart-step-link">
+                {dot}
+                {label}
+              </span>
+            )}
+            {!isLast && <ChevronRightIcon className="cart-step-sep" />}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function CartSkeleton() {
+  return (
+    <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="space-y-3">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <div key={i} className="cart-item-skeleton skeleton-shimmer" />
+        ))}
+      </div>
+      <div className="cart-summary-skeleton skeleton-shimmer" />
+    </div>
+  );
+}
+
+function CartSummary({
+  cart,
+  items,
+  subtotal,
+  hasFreeShipping,
+  shippingRemaining,
+  showActions = true,
+}) {
+  const shippingPercent = Math.min(
+    (subtotal / FREE_SHIPPING_THRESHOLD) * 100,
+    100,
+  );
+
+  return (
+    <div className="cart-summary">
+      <div className="cart-summary-head">
+        <h2>Tóm tắt đơn</h2>
+      </div>
+
+      <div className="cart-summary-stats">
+        <div className="cart-summary-stat">
+          <span className="cart-summary-stat-value">{cart.total_items}</span>
+          <span className="cart-summary-stat-label">Sản phẩm</span>
+        </div>
+        <div className="cart-summary-stat">
+          <span className="cart-summary-stat-value">
+            {formatCurrency(subtotal)}
+          </span>
+          <span className="cart-summary-stat-label">Tạm tính</span>
+        </div>
+        <div className="cart-summary-stat">
+          <span
+            className={`cart-summary-stat-value ${
+              hasFreeShipping ? "is-success" : ""
+            }`}
+          >
+            {hasFreeShipping ? "Miễn phí" : formatCurrency(shippingRemaining)}
+          </span>
+          <span className="cart-summary-stat-label">
+            {hasFreeShipping ? "Vận chuyển" : "Freeship"}
+          </span>
+        </div>
+      </div>
+
+      <div className="cart-summary-body">
+        <div className="cart-freeship">
+          <div className="cart-freeship-top">
+            <TruckIcon className="h-4 w-4 shrink-0 text-slate-400" />
+            {hasFreeShipping ? (
+              <p>Đơn từ 2 triệu — được miễn phí vận chuyển</p>
+            ) : (
+              <p>
+                Mua thêm{" "}
+                <strong>{formatCurrency(shippingRemaining)}</strong> để miễn phí
+                ship
+              </p>
+            )}
+          </div>
+          <div className="cart-freeship-bar">
+            <span style={{ width: `${shippingPercent}%` }} />
+          </div>
+        </div>
+
+        <dl className="cart-summary-lines">
+          <div>
+            <dt>Số dòng</dt>
+            <dd>{items.length}</dd>
+          </div>
+          <div>
+            <dt>Tạm tính</dt>
+            <dd>{formatCurrency(subtotal)}</dd>
+          </div>
+          <div>
+            <dt>Phí vận chuyển</dt>
+            <dd className={hasFreeShipping ? "is-free" : ""}>
+              {hasFreeShipping ? "Miễn phí" : "Tính khi thanh toán"}
+            </dd>
+          </div>
+        </dl>
+
+        <div className="cart-summary-total">
+          <span>Tổng thanh toán</span>
+          <strong className="price-text">{formatCurrency(subtotal)}</strong>
+        </div>
+      </div>
+
+      {showActions && (
+        <div className="cart-summary-actions">
+          <Link to="/checkout" className="btn-primary w-full rounded-xl py-3.5">
+            Thanh toán
+          </Link>
+          <Link
+            to={buildProductsUrl()}
+            className="btn-secondary mt-2.5 w-full rounded-xl py-3"
+          >
+            Tiếp tục mua sắm
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CartItemCard({ item, isBusy, onChangeQuantity, onRemove }) {
+  const image = getMainImage(item.product);
+  const imageUrl = resolveMediaUrl(image?.image);
+  const { unitPrice, stock, lineTotal, sizeLabel } = getCartItemMeta(item);
+  const atMaxStock = item.quantity >= stock;
+  const productUrl = `/products/${item.product.slug || item.product.id}`;
+
+  return (
+    <article className={`cart-item-card ${isBusy ? "is-busy" : ""}`}>
+      <Link to={productUrl} className="cart-item-media">
+        {imageUrl ? (
+          <img src={imageUrl} alt={item.product.name} />
+        ) : (
+          <ImagePlaceholderIcon className="h-8 w-8 text-slate-300" />
+        )}
+      </Link>
+
+      <div className="cart-item-body">
+        <div className="cart-item-top">
+          <div className="min-w-0">
+            <Link to={productUrl} className="cart-item-name">
+              {item.product.name}
+            </Link>
+            <p className="cart-item-meta">
+              {item.product.brand?.name}
+              {item.product.category?.name
+                ? ` · ${item.product.category.name}`
+                : ""}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => onRemove(item.id)}
+            disabled={isBusy}
+            className="cart-item-delete"
+            aria-label="Xóa sản phẩm"
+          >
+            <TrashIcon className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="cart-item-bottom">
+          <div className="cart-item-tags">
+            {sizeLabel && (
+              <span className="cart-item-size">Size {sizeLabel}</span>
+            )}
+            <span className="cart-item-unit">{formatCurrency(unitPrice)}</span>
+          </div>
+
+          <div className="cart-item-actions">
+            <div className="cart-stepper">
+              <button
+                type="button"
+                onClick={() => onChangeQuantity(item, item.quantity - 1)}
+                disabled={item.quantity <= 1 || isBusy}
+                aria-label="Giảm số lượng"
+              >
+                <MinusIcon className="h-4 w-4" />
+              </button>
+              <span>{item.quantity}</span>
+              <button
+                type="button"
+                onClick={() => onChangeQuantity(item, item.quantity + 1)}
+                disabled={atMaxStock || isBusy}
+                aria-label="Tăng số lượng"
+              >
+                <PlusIcon className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="cart-item-total">
+              <span className="price-text">{formatCurrency(lineTotal)}</span>
+              {atMaxStock && (
+                <span className="cart-item-stock-warn">Tối đa {stock}</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
 
 function CartPage() {
   const { isAuthenticated, status: authStatus } = useAuth();
   const [cart, setCart] = useState(null);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
+  const [busyItemId, setBusyItemId] = useState(null);
 
-  async function refreshCart() {
-    setStatus("loading");
+  async function refreshCart({ silent = false } = {}) {
+    if (!silent) {
+      setStatus("loading");
+    }
     setError("");
 
     try {
@@ -59,172 +347,221 @@ function CartPage() {
   }, [isAuthenticated]);
 
   async function changeQuantity(item, nextQuantity) {
-    if (nextQuantity < 1 || nextQuantity > item.product.stock) {
+    const { stock } = getCartItemMeta(item);
+
+    if (nextQuantity < 1 || nextQuantity > stock || busyItemId === item.id) {
       return;
     }
 
-    await updateCartItem(item.id, { quantity: nextQuantity });
-    await refreshCart();
+    setBusyItemId(item.id);
+
+    try {
+      await updateCartItem(item.id, { quantity: nextQuantity });
+      await refreshCart({ silent: true });
+    } catch {
+      setError("Không cập nhật được số lượng.");
+    } finally {
+      setBusyItemId(null);
+    }
   }
 
   async function removeItem(itemId) {
-    await deleteCartItem(itemId);
-    await refreshCart();
+    if (busyItemId === itemId) {
+      return;
+    }
+
+    setBusyItemId(itemId);
+
+    try {
+      await deleteCartItem(itemId);
+      await refreshCart({ silent: true });
+    } catch {
+      setError("Không xóa được sản phẩm khỏi giỏ.");
+    } finally {
+      setBusyItemId(null);
+    }
   }
 
   if (authStatus === "loading") {
     return (
-      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-        <p className="text-zinc-600">Đang kiểm tra đăng nhập...</p>
+      <main className="cart-page">
+        <div className="page-container py-10">
+          <p className="text-slate-500">Đang kiểm tra đăng nhập...</p>
+        </div>
       </main>
     );
   }
 
   if (!isAuthenticated) {
     return (
-      <main className="mx-auto max-w-3xl px-4 py-14 text-center sm:px-6">
-        <h1 className="text-3xl font-bold text-zinc-950">Giỏ hàng</h1>
-        <p className="mt-3 text-zinc-600">
-          Bạn cần đăng nhập để xem và cập nhật giỏ hàng.
-        </p>
-        <Link
-          to="/login"
-          className="mt-6 inline-block rounded-md bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
-        >
-          Đăng nhập
-        </Link>
+      <main className="cart-page">
+        <section className="cart-hero pitch-lines">
+          <div className="cart-hero-bg" aria-hidden>
+            <img src={bannerSlide2} alt="" className="h-full w-full object-cover" />
+            <div className="products-hero-overlay" />
+          </div>
+          <div className="page-container cart-hero-content">
+            <nav className="products-breadcrumb">
+              <Link to="/" className="products-breadcrumb-link">
+                <HomeIcon className="h-4 w-4" />
+                Trang chủ
+              </Link>
+              <span className="text-emerald-700/60">/</span>
+              <span className="font-medium text-emerald-100/90">Giỏ hàng</span>
+            </nav>
+            <h1 className="products-hero-title mt-6">Giỏ hàng</h1>
+            <p className="products-hero-desc mt-2">
+              Đăng nhập để lưu sản phẩm và thanh toán.
+            </p>
+          </div>
+        </section>
+
+        <div className="page-container py-12">
+          <div className="cart-guest-panel">
+            <span className="cart-guest-icon">
+              <CartIcon className="h-8 w-8" />
+            </span>
+            <h2>Chưa đăng nhập</h2>
+            <p>Đăng nhập để đồng bộ giỏ hàng trên mọi thiết bị.</p>
+            <div className="cart-guest-actions">
+              <Link to="/login" className="btn-primary rounded-xl px-7 py-3">
+                Đăng nhập
+              </Link>
+              <Link to="/register" className="btn-secondary rounded-xl px-7 py-3">
+                Đăng ký
+              </Link>
+            </div>
+          </div>
+        </div>
       </main>
     );
   }
 
   const items = cart?.items || [];
+  const isLoading = status === "loading" && !cart;
+  const itemCount = cart?.total_items || 0;
+  const subtotal = Number(cart?.total_price || 0);
+  const shippingRemaining = Math.max(FREE_SHIPPING_THRESHOLD - subtotal, 0);
+  const hasFreeShipping = subtotal >= FREE_SHIPPING_THRESHOLD;
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-zinc-950">Giỏ hàng</h1>
-          <p className="mt-2 text-zinc-600">Kiểm tra sản phẩm trước khi checkout.</p>
+    <main className="cart-page pb-24 lg:pb-12">
+      <section className="cart-hero pitch-lines">
+        <div className="cart-hero-bg" aria-hidden>
+          <img src={bannerSlide2} alt="" className="h-full w-full object-cover" />
+          <div className="products-hero-overlay" />
         </div>
-        <Link className="font-medium text-blue-700 hover:text-blue-800" to="/">
-          Tiếp tục mua hàng
-        </Link>
+        <div className="page-container cart-hero-content">
+          <nav className="products-breadcrumb">
+            <Link to="/" className="products-breadcrumb-link">
+              <HomeIcon className="h-4 w-4" />
+              Trang chủ
+            </Link>
+            <span className="text-emerald-700/60">/</span>
+            <span className="font-medium text-emerald-100/90">Giỏ hàng</span>
+          </nav>
+          <h1 className="products-hero-title mt-6">Giỏ hàng</h1>
+          <p className="products-hero-desc mt-2">
+            {itemCount > 0
+              ? "Kiểm tra size và số lượng trước khi thanh toán"
+              : "Chưa có sản phẩm trong giỏ"}
+          </p>
+        </div>
+      </section>
+
+      <div className="cart-page-body">
+        <div className="page-container py-8 sm:py-10">
+          <CartSteps />
+
+          {error && (
+            <p role="alert" className="cart-error">
+              {error}
+            </p>
+          )}
+
+          {isLoading && <CartSkeleton />}
+
+          {status === "success" && items.length === 0 && (
+            <section className="cart-empty">
+              <span className="cart-empty-icon">
+                <EmptyBoxIcon className="h-8 w-8" />
+              </span>
+              <h2>Giỏ hàng trống</h2>
+              <p>Thêm giày, áo đấu hoặc phụ kiện để bắt đầu đặt hàng.</p>
+              <Link to={buildProductsUrl()} className="btn-primary mt-6 rounded-xl">
+                Xem sản phẩm
+              </Link>
+            </section>
+          )}
+
+          {items.length > 0 && cart && (
+            <section className="cart-layout">
+              <div className="cart-items-panel">
+                <header className="cart-items-head">
+                  <h2>Sản phẩm</h2>
+                  <span className="cart-items-count">{items.length} dòng</span>
+                </header>
+
+                <div className="cart-items-list">
+                  {items.map((item, index) => (
+                    <AnimateIn key={item.id} delay={index * 40}>
+                      <CartItemCard
+                        item={item}
+                        isBusy={busyItemId === item.id}
+                        onChangeQuantity={changeQuantity}
+                        onRemove={removeItem}
+                      />
+                    </AnimateIn>
+                  ))}
+                </div>
+              </div>
+
+              <aside className="cart-aside">
+                <CartSummary
+                  cart={cart}
+                  items={items}
+                  subtotal={subtotal}
+                  hasFreeShipping={hasFreeShipping}
+                  shippingRemaining={shippingRemaining}
+                />
+              </aside>
+
+              <details className="group cart-mobile-summary lg:hidden">
+                <summary>
+                  <div>
+                    <p>Tóm tắt đơn</p>
+                    <span>
+                      {cart.total_items} sp · {formatCurrency(subtotal)}
+                    </span>
+                  </div>
+                  <ChevronRightIcon className="h-5 w-5 text-slate-400 transition group-open:rotate-90" />
+                </summary>
+                <CartSummary
+                  cart={cart}
+                  items={items}
+                  subtotal={subtotal}
+                  hasFreeShipping={hasFreeShipping}
+                  shippingRemaining={shippingRemaining}
+                  showActions={false}
+                />
+              </details>
+            </section>
+          )}
+        </div>
       </div>
 
-      {status === "loading" && (
-        <p className="mt-6 text-zinc-600">Đang tải giỏ hàng...</p>
-      )}
-
-      {status === "error" && (
-        <p className="mt-6 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </p>
-      )}
-
-      {status === "success" && items.length === 0 && (
-        <section className="mt-6 rounded-lg border border-dashed border-zinc-300 bg-white px-6 py-12 text-center">
-          <h2 className="text-lg font-semibold text-zinc-950">Giỏ hàng trống</h2>
-          <p className="mt-2 text-zinc-600">Chọn vài sản phẩm để bắt đầu đặt hàng.</p>
-          <Link
-            to="/"
-            className="mt-5 inline-block rounded-md bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
-          >
-            Xem sản phẩm
-          </Link>
-        </section>
-      )}
-
-      {items.length > 0 && (
-        <section className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
-          <div className="space-y-4">
-            {items.map((item) => {
-              const image = getMainImage(item.product);
-              const imageUrl = resolveMediaUrl(image?.image);
-
-              return (
-                <article
-                  key={item.id}
-                  className="grid gap-4 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm sm:grid-cols-[120px_1fr_auto]"
-                >
-                  <div className="aspect-square overflow-hidden rounded-md bg-zinc-100">
-                    {imageUrl ? (
-                      <img
-                        src={imageUrl}
-                        alt={item.product.name}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : null}
-                  </div>
-
-                  <div>
-                    <h2 className="font-semibold text-zinc-950">
-                      {item.product.name}
-                    </h2>
-                    <p className="mt-1 text-sm text-zinc-500">
-                      {item.product.brand?.name} / {item.product.category?.name}
-                    </p>
-                    <p className="mt-3 font-bold text-blue-700">
-                      {formatCurrency(item.product.price)}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-row items-center justify-between gap-4 sm:flex-col sm:items-end">
-                    <div className="flex items-center rounded-md border border-zinc-300">
-                      <button
-                        type="button"
-                        onClick={() => changeQuantity(item, item.quantity - 1)}
-                        className="h-9 w-9 font-semibold hover:bg-zinc-100"
-                      >
-                        -
-                      </button>
-                      <span className="w-10 border-x border-zinc-300 text-center text-sm font-semibold leading-9">
-                        {item.quantity}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => changeQuantity(item, item.quantity + 1)}
-                        className="h-9 w-9 font-semibold hover:bg-zinc-100"
-                      >
-                        +
-                      </button>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeItem(item.id)}
-                      className="text-sm font-semibold text-red-600 hover:text-red-700"
-                    >
-                      Xóa
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-
-          <aside className="h-fit rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-bold text-zinc-950">Tóm tắt</h2>
-            <div className="mt-4 space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-zinc-600">Số lượng</span>
-                <span className="font-semibold text-zinc-950">
-                  {cart.total_items} sản phẩm
-                </span>
-              </div>
-              <div className="flex justify-between border-t border-zinc-200 pt-3">
-                <span className="font-semibold text-zinc-950">Tổng tiền</span>
-                <span className="text-xl font-bold text-blue-700">
-                  {formatCurrency(cart.total_price)}
-                </span>
-              </div>
+      {items.length > 0 && cart && (
+        <div className="cart-mobile-bar lg:hidden">
+          <div className="page-container cart-mobile-bar-inner">
+            <div>
+              <p>Tổng thanh toán</p>
+              <strong className="price-text">{formatCurrency(subtotal)}</strong>
             </div>
-            <Link
-              to="/checkout"
-              className="mt-5 block rounded-md bg-blue-600 px-5 py-3 text-center font-semibold text-white hover:bg-blue-700"
-            >
+            <Link to="/checkout" className="btn-primary shrink-0 rounded-xl px-6 py-3">
               Thanh toán
             </Link>
-          </aside>
-        </section>
+          </div>
+        </div>
       )}
     </main>
   );

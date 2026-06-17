@@ -84,7 +84,7 @@ function OrderHistoryPage() {
           <h2 className="text-lg font-semibold text-zinc-950">Chưa có đơn hàng</h2>
           <p className="mt-2 text-zinc-600">Checkout một giỏ hàng để tạo đơn đầu tiên.</p>
           <Link
-            to="/"
+            to="/products"
             className="mt-5 inline-block rounded-md bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
           >
             Xem sản phẩm
@@ -101,7 +101,9 @@ function OrderHistoryPage() {
             <div className="flex flex-col gap-3 border-b border-zinc-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-lg font-bold text-zinc-950">
-                  Đơn hàng #{order.id}
+                  <Link className="hover:text-blue-700" to={`/orders/${order.id}`}>
+                    Đơn hàng #{order.id}
+                  </Link>
                 </h2>
                 <p className="mt-1 text-sm text-zinc-500">
                   {new Date(order.created_at).toLocaleString("vi-VN")}

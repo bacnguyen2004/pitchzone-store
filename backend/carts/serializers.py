@@ -1,21 +1,33 @@
 from rest_framework import serializers
 
-from catalog.serializers import ProductSerializer
-from catalog.models import Product
+from catalog.models import Product, ProductVariant
+from catalog.serializers import ProductSerializer, ProductVariantSerializer
 from .models import Cart, CartItem
 
 
 class CartItemSerializer(serializers.ModelSerializer):
-    product = ProductSerializer(read_only=True)
+    product = ProductSerializer(source="variant.product", read_only=True)
+    variant = ProductVariantSerializer(read_only=True)
+    variant_id = serializers.PrimaryKeyRelatedField(
+        queryset=ProductVariant.objects.filter(is_active=True, product__is_active=True),
+        source="variant",
+        write_only=True,
+        required=False,
+    )
     product_id = serializers.PrimaryKeyRelatedField(
         queryset=Product.objects.filter(is_active=True),
-        source="product",
-        write_only=True
+        write_only=True,
+        required=False,
+    )
+    unit_price = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        read_only=True,
     )
     total_price = serializers.DecimalField(
         max_digits=12,
         decimal_places=2,
-        read_only=True
+        read_only=True,
     )
 
     class Meta:
@@ -24,7 +36,10 @@ class CartItemSerializer(serializers.ModelSerializer):
             "id",
             "product",
             "product_id",
+            "variant",
+            "variant_id",
             "quantity",
+            "unit_price",
             "total_price",
         )
 
@@ -34,11 +49,31 @@ class CartItemSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
-        product = attrs.get("product") or getattr(self.instance, "product", None)
+        product = attrs.pop("product_id", None)
+        variant = attrs.get("variant") or getattr(self.instance, "variant", None)
+
+        if product and not variant:
+            variant = product.variants.filter(
+                is_active=True,
+                stock__gt=0,
+            ).order_by("price", "id").first()
+            if not variant:
+                raise serializers.ValidationError(
+                    "This product does not have an available variant."
+                )
+            attrs["variant"] = variant
+
+        if self.instance is None and not variant:
+            raise serializers.ValidationError(
+                {"variant_id": "This field is required."}
+            )
+
         quantity = attrs.get("quantity") or getattr(self.instance, "quantity", 1)
 
-        if product and quantity > product.stock:
-            raise serializers.ValidationError("Not enough product stock.")
+        if variant and quantity > variant.stock:
+            raise serializers.ValidationError(
+                f"Not enough stock for {variant.product.name} ({variant.name})."
+            )
 
         return attrs
 

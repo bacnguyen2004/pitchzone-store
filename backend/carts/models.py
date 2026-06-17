@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.db import models
 
-from catalog.models import Product
+from catalog.models import ProductVariant
 
 
 class Cart(models.Model):
@@ -31,8 +31,8 @@ class CartItem(models.Model):
         on_delete=models.CASCADE,
         related_name="items"
     )
-    product = models.ForeignKey(
-        Product,
+    variant = models.ForeignKey(
+        ProductVariant,
         on_delete=models.CASCADE,
         related_name="cart_items"
     )
@@ -41,11 +41,19 @@ class CartItem(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     @property
+    def unit_price(self):
+        return self.variant.effective_price
+
+    @property
     def total_price(self):
-        return self.product.price * self.quantity
+        return self.unit_price * self.quantity
+
+    @property
+    def product(self):
+        return self.variant.product
 
     class Meta:
-        unique_together = ("cart", "product")
+        unique_together = ("cart", "variant")
 
     def __str__(self):
-        return f"{self.quantity} x {self.product.name}"
+        return f"{self.quantity} x {self.variant.product.name} ({self.variant.name})"

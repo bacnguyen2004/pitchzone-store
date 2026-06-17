@@ -1,20 +1,34 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 
+import authVisual from "../assets/auth-login.jpg";
+import AuthAlert from "../components/AuthAlert";
+import AuthField from "../components/AuthField";
+import AuthLayout from "../components/AuthLayout";
+import { LockIcon, UserIcon } from "../components/AuthIcons";
 import { useAuth } from "../contexts/AuthContext";
+import { getLoginError } from "../utils/authErrors";
 
 function LoginPage() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { isAuthenticated, login } = useAuth();
 
   const [form, setForm] = useState({
     username: "",
     password: "",
   });
-  const [error, setError] = useState("");
+  const [alert, setAlert] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  if (isAuthenticated) {
+    return <Navigate replace to="/" />;
+  }
+
   function handleChange(event) {
+    if (alert) {
+      setAlert(null);
+    }
+
     setForm({
       ...form,
       [event.target.name]: event.target.value,
@@ -23,87 +37,91 @@ function LoginPage() {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    setError("");
+    setAlert(null);
     setIsSubmitting(true);
 
     try {
       await login(form);
       navigate("/");
     } catch {
-      setError("Tên đăng nhập hoặc mật khẩu không đúng.");
+      setAlert(getLoginError());
     } finally {
       setIsSubmitting(false);
     }
   }
 
   return (
-    <main className="mx-auto grid min-h-[calc(100vh-160px)] max-w-7xl items-center px-4 py-10 sm:px-6 lg:grid-cols-[1fr_420px] lg:gap-12">
-      <section className="hidden lg:block">
-        <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">
-          Customer account
-        </p>
-        <h1 className="mt-2 text-4xl font-bold text-zinc-950">
-          Đăng nhập để tiếp tục mua hàng
-        </h1>
-        <p className="mt-4 max-w-xl text-zinc-600">
-          Tài khoản giúp bạn lưu giỏ hàng, checkout nhanh và theo dõi lịch sử
-          đơn hàng trong TechGear Store.
-        </p>
-      </section>
-
-      <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <h2 className="text-2xl font-bold text-zinc-950">Đăng nhập</h2>
-        <p className="mt-2 text-zinc-600">Nhập thông tin tài khoản của bạn.</p>
-
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          {error && (
-            <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">
-              {error}
-            </p>
-          )}
-
-          <label className="block">
-            <span className="text-sm font-medium text-zinc-700">
-              Tên đăng nhập
-            </span>
-            <input
-              name="username"
-              value={form.username}
-              onChange={handleChange}
-              className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-              required
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium text-zinc-700">Mật khẩu</span>
-            <input
-              name="password"
-              type="password"
-              value={form.password}
-              onChange={handleChange}
-              className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-              required
-            />
-          </label>
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full rounded-md bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:bg-zinc-400"
-          >
-            {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
-          </button>
-        </form>
-
-        <p className="mt-5 text-sm text-zinc-600">
+    <AuthLayout
+      visual={authVisual}
+      visualAlt="Giày đá bóng và bóng trên sân cỏ"
+      eyebrow="Chào mừng trở lại sân cỏ"
+      title="Sẵn sàng cho trận đấu tiếp theo"
+      subtitle="Giày, áo đấu và phụ kiện bóng đá — giỏ hàng và đơn hàng của bạn vẫn đang chờ."
+      features={[
+        "Theo dõi đơn hàng giày, áo, bóng mọi lúc",
+        "Giỏ hàng được lưu sẵn cho lần sau",
+        "Thanh toán nhanh với thông tin đã có",
+      ]}
+      footer={
+        <>
           Chưa có tài khoản?{" "}
-          <Link className="font-semibold text-blue-700" to="/register">
-            Đăng ký ngay
+          <Link
+            className="font-medium text-emerald-600 underline decoration-emerald-200 underline-offset-4 transition hover:text-emerald-700 hover:decoration-emerald-400"
+            to="/register"
+          >
+            Tạo tài khoản mới
           </Link>
+        </>
+      }
+    >
+      <div>
+        <h2 className="text-[1.75rem] font-semibold leading-snug tracking-tight text-zinc-900">
+          Đăng nhập
+        </h2>
+        <p className="mt-2 text-[15px] leading-7 text-zinc-500">
+          Vào tài khoản để tiếp tục mua giày, áo đấu và đồ bóng đá.
         </p>
-      </section>
-    </main>
+      </div>
+
+      <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+        {alert && (
+          <AuthAlert
+            title={alert.title}
+            messages={alert.messages}
+            onDismiss={() => setAlert(null)}
+          />
+        )}
+
+        <AuthField
+          label="Tên đăng nhập"
+          name="username"
+          value={form.username}
+          onChange={handleChange}
+          autoComplete="username"
+          placeholder="vd: fanbongda"
+          icon={<UserIcon />}
+        />
+
+        <AuthField
+          label="Mật khẩu"
+          name="password"
+          type="password"
+          value={form.password}
+          onChange={handleChange}
+          autoComplete="current-password"
+          placeholder="Nhập mật khẩu"
+          icon={<LockIcon />}
+        />
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="inline-flex w-full items-center justify-center rounded-lg bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-emerald-600/20 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
+        </button>
+      </form>
+    </AuthLayout>
   );
 }
 

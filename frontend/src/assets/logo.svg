@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" role="img" aria-label="PitchZone Football Gear">
+  <defs>
+    <linearGradient id="tg-bg" x1="6" y1="4" x2="42" y2="44" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#10B981" />
+      <stop stop-color="#047857" />
+    </linearGradient>
+    <linearGradient id="tg-shine" x1="24" y1="4" x2="24" y2="26" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.22" />
+      <stop stop-color="#FFFFFF" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="44" height="44" rx="12" fill="url(#tg-bg)" />
+  <rect x="2" y="2" width="44" height="22" rx="12" fill="url(#tg-shine)" />
+  <circle cx="36" cy="12" r="2.5" fill="#A7F3D0" />
+  <circle cx="24" cy="26" r="13.5" fill="#FFFFFF" />
+  <path
+    fill="#0F172A"
+    d="M24 13.8l3.55 2.58-1.36 4.27H21.8l-1.36-4.27L24 13.8z"
+  />
+  <path
+    fill="#0F172A"
+    d="M17.55 21.9l2.42-3.12 4.24 1.35.51 4.43-3.68 1.54-3.49-4.2z"
+  />
+  <path
+    fill="#0F172A"
+    d="M30.45 21.9l-3.49 4.2-3.68-1.54.51-4.43 4.24-1.35 2.42 3.12z"
+  />
+  <path
+    fill="#0F172A"
+    d="M19.85 30.55l1.73-4.25 3.82.19 1.91 3.68-3.91 1.91-3.55-1.53z"
+  />
+  <path
+    fill="#0F172A"
+    d="M28.15 30.55l-3.55 1.53-3.91-1.91 1.91-3.68 3.82-.19 1.73 4.25z"
+  />
+  <path
+    fill="#0F172A"
+    d="M24 35.2c-3.1 0-5.85-1.5-7.55-3.85l2.65-1.3c1.2 1.65 3.15 2.72 4.9 2.72s3.7-1.07 4.9-2.72l2.65 1.3C29.85 33.7 27.1 35.2 24 35.2z"
+  />
+</svg>

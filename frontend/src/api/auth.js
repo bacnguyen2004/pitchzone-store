@@ -14,3 +14,13 @@ export async function getCurrentUser() {
   const response = await api.get("/auth/me/");
   return response.data;
 }
+
+export async function updateCurrentUser(payload) {
+  const response = await api.patch("/auth/me/", payload);
+  return response.data;
+}
+
+export async function changePassword(payload) {
+  const response = await api.post("/auth/change-password/", payload);
+  return response.data;
+}

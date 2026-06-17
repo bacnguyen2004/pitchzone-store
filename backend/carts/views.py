@@ -1,3 +1,4 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -23,20 +24,25 @@ class CartViewSet(viewsets.ViewSet):
         serializer = CartItemSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        product = serializer.validated_data["product"]
+        variant = serializer.validated_data["variant"]
         quantity = serializer.validated_data["quantity"]
 
         item, created = CartItem.objects.get_or_create(
             cart=cart,
-            product=product,
+            variant=variant,
             defaults={"quantity": quantity},
         )
 
         if not created:
             new_quantity = item.quantity + quantity
-            if new_quantity > product.stock:
+            if new_quantity > variant.stock:
                 return Response(
-                    {"detail": "Not enough product stock."},
+                    {
+                        "detail": (
+                            f"Not enough stock for {variant.product.name} "
+                            f"({variant.name})."
+                        )
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             item.quantity = new_quantity
@@ -47,10 +53,18 @@ class CartViewSet(viewsets.ViewSet):
             status=status.HTTP_201_CREATED,
         )
 
-    @action(detail=False, methods=["patch"], url_path="items/(?P<item_id>[^/.]+)")
-    def update_item(self, request, item_id=None):
+    @action(
+        detail=False,
+        methods=["patch", "delete"],
+        url_path="items/(?P<item_id>[^/.]+)",
+    )
+    def item_detail(self, request, item_id=None):
         cart = self.get_cart()
-        item = CartItem.objects.get(cart=cart, id=item_id)
+        item = get_object_or_404(CartItem, cart=cart, id=item_id)
+
+        if request.method == "DELETE":
+            item.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
 
         serializer = CartItemSerializer(
             item,
@@ -61,10 +75,3 @@ class CartViewSet(viewsets.ViewSet):
         serializer.save()
 
         return Response(serializer.data)
-
-    @action(detail=False, methods=["delete"], url_path="items/(?P<item_id>[^/.]+)")
-    def delete_item(self, request, item_id=None):
-        cart = self.get_cart()
-        item = CartItem.objects.get(cart=cart, id=item_id)
-        item.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)

@@ -5,8 +5,8 @@ export async function getProducts(params = {}) {
   return response.data;
 }
 
-export async function getProduct(id) {
-  const response = await api.get(`/products/${id}/`);
+export async function getProduct(slugOrId) {
+  const response = await api.get(`/products/${slugOrId}/`);
   return response.data;
 }
 
@@ -20,3 +20,7 @@ export async function getBrands() {
   return response.data.results || response.data;
 }
 
+export async function getActivePromotion() {
+  const response = await api.get("/promotions/active/");
+  return response.data;
+}

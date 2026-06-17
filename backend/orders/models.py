@@ -1,7 +1,49 @@
 from django.conf import settings
 from django.db import models
 
-from catalog.models import Product
+from catalog.models import Product, ProductVariant
+
+
+class Voucher(models.Model):
+    DISCOUNT_PERCENT = "percent"
+    DISCOUNT_FIXED = "fixed"
+    DISCOUNT_CHOICES = [
+        (DISCOUNT_PERCENT, "Percent"),
+        (DISCOUNT_FIXED, "Fixed amount"),
+    ]
+
+    code = models.CharField(max_length=40, unique=True)
+    description = models.CharField(max_length=255, blank=True)
+    discount_type = models.CharField(
+        max_length=20,
+        choices=DISCOUNT_CHOICES,
+        default=DISCOUNT_PERCENT,
+    )
+    discount_value = models.DecimalField(max_digits=12, decimal_places=2)
+    min_order_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+    )
+    max_discount_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    starts_at = models.DateTimeField()
+    ends_at = models.DateTimeField()
+    is_active = models.BooleanField(default=True)
+    usage_limit = models.PositiveIntegerField(null=True, blank=True)
+    used_count = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("code",)
+
+    def __str__(self):
+        return self.code
 
 
 class Order(models.Model):
@@ -23,6 +65,9 @@ class Order(models.Model):
     address = models.CharField(max_length=255)
     note = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    voucher_code = models.CharField(max_length=40, blank=True)
     total_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -41,10 +86,25 @@ class OrderItem(models.Model):
         on_delete=models.PROTECT,
         related_name="order_items"
     )
+    variant = models.ForeignKey(
+        ProductVariant,
+        on_delete=models.PROTECT,
+        related_name="order_items",
+        null=True,
+        blank=True,
+    )
     product_name = models.CharField(max_length=200)
+    variant_name = models.CharField(max_length=100, blank=True)
+    compare_at_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
     price = models.DecimalField(max_digits=12, decimal_places=2)
     quantity = models.PositiveIntegerField()
     total_price = models.DecimalField(max_digits=12, decimal_places=2)
 
     def __str__(self):
-        return f"{self.quantity} x {self.product_name}"
+        variant = f" ({self.variant_name})" if self.variant_name else ""
+        return f"{self.quantity} x {self.product_name}{variant}"

@@ -8,7 +8,12 @@ import {
   useState,
 } from "react";
 
-import { getCurrentUser, loginUser, registerUser } from "../api/auth";
+import {
+  getCurrentUser,
+  loginUser,
+  registerUser,
+  updateCurrentUser,
+} from "../api/auth";
 
 const AuthContext = createContext(null);
 
@@ -65,6 +70,12 @@ export function AuthProvider({ children }) {
     setStatus("guest");
   }, []);
 
+  const updateProfile = useCallback(async (payload) => {
+    const updatedUser = await updateCurrentUser(payload);
+    setUser(updatedUser);
+    return updatedUser;
+  }, []);
+
   const value = useMemo(
     () => ({
       user,
@@ -73,8 +84,9 @@ export function AuthProvider({ children }) {
       login,
       register,
       logout,
+      updateProfile,
     }),
-    [user, status, login, register, logout],
+    [user, status, login, register, logout, updateProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
