@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import ScrollToTop from "./components/ScrollToTop";
 import AdminGuard from "./components/AdminGuard";
 import { AuthProvider } from "./contexts/AuthContext";
+import { ToastProvider } from "./contexts/ToastContext";
 import AdminLayout from "./layouts/AdminLayout";
 import MainLayout from "./layouts/MainLayout";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
@@ -22,8 +23,11 @@ import FaqPage from "./pages/FaqPage";
 import LoginPage from "./pages/LoginPage";
 import PolicyPage from "./pages/PolicyPage";
 import NotFoundPage from "./pages/NotFoundPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import OrderDetailPage from "./pages/OrderDetailPage";
 import OrderHistoryPage from "./pages/OrderHistoryPage";
+import OrderSuccessPage from "./pages/OrderSuccessPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ProfilePage from "./pages/ProfilePage";
 import ProductDetailPage from "./pages/ProductDetailPage";
 import HomePage from "./pages/HomePage";
@@ -33,6 +37,7 @@ import RegisterPage from "./pages/RegisterPage";
 function App() {
   return (
     <AuthProvider>
+      <ToastProvider>
       <BrowserRouter>
         <ScrollToTop />
         <Routes>
@@ -47,9 +52,12 @@ function App() {
             <Route path="/products/:slug" element={<ProductDetailPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/cart" element={<CartPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/orders" element={<OrderHistoryPage />} />
+            <Route path="/orders/success/:id" element={<OrderSuccessPage />} />
             <Route path="/orders/:id" element={<OrderDetailPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="*" element={<NotFoundPage />} />
@@ -74,6 +82,7 @@ function App() {
           </Route>
         </Routes>
       </BrowserRouter>
+      </ToastProvider>
     </AuthProvider>
   );
 }

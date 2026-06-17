@@ -54,6 +54,12 @@ class Order(models.Model):
         ("completed", "Completed"),
         ("cancelled", "Cancelled"),
     ]
+    PAYMENT_COD = "cod"
+    PAYMENT_TRANSFER = "transfer"
+    PAYMENT_METHOD_CHOICES = [
+        (PAYMENT_COD, "Thanh toán khi nhận hàng"),
+        (PAYMENT_TRANSFER, "Chuyển khoản ngân hàng"),
+    ]
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -63,9 +69,16 @@ class Order(models.Model):
     full_name = models.CharField(max_length=150)
     phone = models.CharField(max_length=20)
     address = models.CharField(max_length=255)
+    city = models.CharField(max_length=100, blank=True)
     note = models.TextField(blank=True)
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+        default=PAYMENT_COD,
+    )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    shipping_fee = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     voucher_code = models.CharField(max_length=40, blank=True)
     total_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)

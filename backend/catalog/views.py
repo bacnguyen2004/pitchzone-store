@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 
 from .filters import ProductFilter
-from .models import Category, Brand, Product, ProductVariant, Promotion
+from .models import Category, Brand, Product, ProductReview, ProductVariant, Promotion
 from .permissions import IsAdminOrReadOnly
 from orders.permissions import IsAdminUser
 from .serializers import (
@@ -19,6 +19,8 @@ from .serializers import (
     ProductSerializer,
     ProductVariantSerializer,
     ProductVariantWriteSerializer,
+    ProductReviewSerializer,
+    ProductReviewWriteSerializer,
     ProductWriteSerializer,
     PromotionSerializer,
     PromotionWriteSerializer,
@@ -218,6 +220,36 @@ class PromotionViewSet(viewsets.ReadOnlyModelViewSet):
 
         serializer = self.get_serializer(promotion)
         return Response(serializer.data)
+
+
+class ProductReviewViewSet(viewsets.ModelViewSet):
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    ordering_fields = ["created_at", "rating"]
+    ordering = ["-created_at"]
+
+    def get_queryset(self):
+        queryset = ProductReview.objects.filter(is_approved=True).select_related(
+            "user",
+            "product",
+        )
+        product_id = self.request.query_params.get("product")
+        product_slug = self.request.query_params.get("product__slug")
+
+        if product_id:
+            queryset = queryset.filter(product_id=product_id)
+        if product_slug:
+            queryset = queryset.filter(product__slug=product_slug)
+
+        return queryset
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return ProductReviewWriteSerializer
+        return ProductReviewSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
 
 class AdminPromotionViewSet(viewsets.ModelViewSet):

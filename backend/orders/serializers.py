@@ -105,9 +105,12 @@ class OrderSerializer(serializers.ModelSerializer):
             "full_name",
             "phone",
             "address",
+            "city",
             "note",
+            "payment_method",
             "status",
             "subtotal",
+            "shipping_fee",
             "discount_amount",
             "voucher_code",
             "total_price",
@@ -127,7 +130,12 @@ class CheckoutSerializer(serializers.Serializer):
     full_name = serializers.CharField(max_length=150)
     phone = serializers.CharField(max_length=20)
     address = serializers.CharField(max_length=255)
+    city = serializers.CharField(required=False, allow_blank=True, max_length=100)
     note = serializers.CharField(required=False, allow_blank=True)
+    payment_method = serializers.ChoiceField(
+        choices=Order.PAYMENT_METHOD_CHOICES,
+        default=Order.PAYMENT_COD,
+    )
     voucher_code = serializers.CharField(
         required=False,
         allow_blank=True,
@@ -136,6 +144,11 @@ class CheckoutSerializer(serializers.Serializer):
 
     def validate_voucher_code(self, value):
         return value.strip().upper()
+
+
+class ShippingQuoteSerializer(serializers.Serializer):
+    subtotal = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=0)
+    city = serializers.CharField(required=False, allow_blank=True, max_length=100)
 
 
 class VoucherValidateSerializer(serializers.Serializer):

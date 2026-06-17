@@ -3330,3 +3330,281 @@
     opacity: 1;
   }
 }
+
+@layer components {
+  .header-cart-badge {
+    @apply absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1 text-[10px] font-bold text-white ring-2 ring-white;
+  }
+
+  .site-toast {
+    @apply fixed bottom-6 right-6 z-50 max-w-sm rounded-xl border px-4 py-3 text-sm font-semibold shadow-lg;
+  }
+
+  .site-toast.is-success {
+    @apply border-emerald-200 bg-emerald-50 text-emerald-900;
+  }
+
+  .site-toast.is-error {
+    @apply border-red-200 bg-red-50 text-red-800;
+  }
+
+  .order-page-head h1 {
+    @apply text-3xl font-bold tracking-tight text-slate-900;
+  }
+
+  .order-page-head p {
+    @apply mt-2 text-slate-600;
+  }
+
+  .order-list {
+    @apply mt-6 space-y-4;
+  }
+
+  .order-card {
+    @apply rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm;
+  }
+
+  .order-card-head {
+    @apply flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between;
+  }
+
+  .order-card-id {
+    @apply text-lg font-bold text-slate-900 hover:text-emerald-700;
+  }
+
+  .order-card-date {
+    @apply mt-1 text-sm text-slate-500;
+  }
+
+  .order-card-meta {
+    @apply flex items-center gap-3 sm:flex-col sm:items-end;
+  }
+
+  .order-card-meta strong {
+    @apply text-lg font-bold text-emerald-700;
+  }
+
+  .order-card-items {
+    @apply mt-4 space-y-1 text-sm text-slate-700;
+  }
+
+  .order-card-items .is-muted {
+    @apply text-slate-500;
+  }
+
+  .order-card-foot {
+    @apply mt-4 flex items-center justify-between text-sm;
+  }
+
+  .order-card-payment {
+    @apply text-slate-500;
+  }
+
+  .order-card-link {
+    @apply inline-flex items-center gap-1 font-semibold text-emerald-700 hover:text-emerald-800;
+  }
+
+  .order-status-badge {
+    @apply inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1;
+  }
+
+  .order-status-badge.is-pending {
+    @apply bg-amber-50 text-amber-800 ring-amber-200;
+  }
+
+  .order-status-badge.is-processing {
+    @apply bg-blue-50 text-blue-800 ring-blue-200;
+  }
+
+  .order-status-badge.is-shipping {
+    @apply bg-indigo-50 text-indigo-800 ring-indigo-200;
+  }
+
+  .order-status-badge.is-completed {
+    @apply bg-emerald-50 text-emerald-800 ring-emerald-200;
+  }
+
+  .order-status-badge.is-cancelled {
+    @apply bg-slate-100 text-slate-600 ring-slate-200;
+  }
+
+  .order-alert.is-error {
+    @apply mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700;
+  }
+
+  .order-skeleton-list {
+    @apply mt-6 space-y-4;
+  }
+
+  .order-card-skeleton,
+  .order-detail-skeleton {
+    @apply h-36 rounded-2xl bg-slate-100;
+  }
+
+  .order-back-link {
+    @apply text-sm font-semibold text-emerald-700 hover:text-emerald-800;
+  }
+
+  .order-detail-layout {
+    @apply mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem];
+  }
+
+  .order-detail-main,
+  .order-detail-summary {
+    @apply rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm;
+  }
+
+  .order-detail-head {
+    @apply flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between;
+  }
+
+  .order-detail-head h1 {
+    @apply text-2xl font-bold text-slate-900;
+  }
+
+  .order-timeline {
+    @apply mt-6 flex flex-wrap gap-4;
+  }
+
+  .order-timeline li {
+    @apply flex items-center gap-2 text-sm text-slate-500;
+  }
+
+  .order-timeline li.is-done {
+    @apply font-semibold text-emerald-700;
+  }
+
+  .order-timeline-dot {
+    @apply h-2.5 w-2.5 rounded-full bg-slate-200;
+  }
+
+  .order-timeline li.is-done .order-timeline-dot {
+    @apply bg-emerald-600;
+  }
+
+  .order-timeline-cancelled {
+    @apply mt-4 text-sm font-medium text-red-600;
+  }
+
+  .order-detail-grid {
+    @apply mt-6 grid gap-4 sm:grid-cols-3;
+  }
+
+  .order-detail-grid h3 {
+    @apply text-xs font-semibold uppercase tracking-wide text-slate-500;
+  }
+
+  .order-detail-grid .is-muted {
+    @apply text-sm text-slate-500;
+  }
+
+  .order-detail-note {
+    @apply mt-4 rounded-xl bg-slate-50 p-4 text-sm;
+  }
+
+  .order-detail-items ul {
+    @apply mt-4 divide-y divide-slate-100;
+  }
+
+  .order-detail-items li {
+    @apply flex items-start justify-between gap-4 py-4;
+  }
+
+  .order-item-name {
+    @apply font-semibold text-slate-900;
+  }
+
+  .order-item-variant,
+  .order-item-qty {
+    @apply mt-1 text-sm text-slate-500;
+  }
+
+  .order-detail-summary dl {
+    @apply mt-4 space-y-2 text-sm;
+  }
+
+  .order-detail-summary dl div {
+    @apply flex justify-between gap-4;
+  }
+
+  .order-detail-summary .is-discount {
+    @apply text-emerald-700;
+  }
+
+  .order-detail-total {
+    @apply mt-4 flex items-center justify-between border-t border-slate-100 pt-4 text-lg font-bold;
+  }
+
+  .order-success-card {
+    @apply mx-auto max-w-xl rounded-2xl border border-emerald-200/80 bg-white p-8 text-center shadow-sm;
+  }
+
+  .order-success-icon {
+    @apply mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700;
+  }
+
+  .order-success-card h1 {
+    @apply mt-5 text-2xl font-bold text-slate-900;
+  }
+
+  .order-success-summary {
+    @apply mt-6 space-y-3 rounded-xl bg-slate-50 p-4 text-left text-sm;
+  }
+
+  .order-success-summary div {
+    @apply flex justify-between gap-4;
+  }
+
+  .order-success-hint {
+    @apply mt-4 text-sm text-slate-600;
+  }
+
+  .order-success-actions {
+    @apply mt-6 flex flex-wrap justify-center gap-3;
+  }
+
+  .product-reviews-head {
+    @apply mb-4 flex flex-wrap items-end justify-between gap-2;
+  }
+
+  .product-reviews-average {
+    @apply text-sm font-semibold text-amber-700;
+  }
+
+  .product-review-form {
+    @apply mb-6 space-y-3 rounded-xl border border-slate-100 bg-slate-50/70 p-4;
+  }
+
+  .product-review-stars {
+    @apply flex gap-1;
+  }
+
+  .product-review-stars button {
+    @apply text-xl text-slate-300 transition hover:text-amber-400 disabled:cursor-default;
+  }
+
+  .product-review-stars button.is-active {
+    @apply text-amber-500;
+  }
+
+  .product-review-list {
+    @apply space-y-4;
+  }
+
+  .product-review-item {
+    @apply rounded-xl border border-slate-100 bg-white p-4 text-sm;
+  }
+
+  .product-review-item-head {
+    @apply mb-2 flex flex-wrap items-center justify-between gap-2;
+  }
+
+  .product-review-item time {
+    @apply mt-2 block text-xs text-slate-400;
+  }
+
+  .admin-variant-row,
+  .admin-variant-create {
+    @apply rounded-xl border border-slate-200 bg-slate-50/60 p-4;
+  }
+}

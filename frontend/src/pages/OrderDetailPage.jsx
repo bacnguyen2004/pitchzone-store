@@ -1,17 +1,40 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
-import { getOrder } from "../api/orders";
+import { cancelOrder, getOrder } from "../api/orders";
 import { useAuth } from "../contexts/AuthContext";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { formatCurrency } from "../utils/format";
+import {
+  ORDER_TIMELINE,
+  orderStatusLabels,
+  orderStatusTones,
+  paymentMethodLabels,
+} from "../utils/orderStatus";
 
-const statusLabel = {
-  pending: "Chờ xử lý",
-  processing: "Đang xử lý",
-  shipping: "Đang giao",
-  completed: "Hoàn thành",
-  cancelled: "Đã hủy",
-};
+function OrderTimeline({ status }) {
+  if (status === "cancelled") {
+    return (
+      <p className="order-timeline-cancelled">Đơn hàng đã được hủy.</p>
+    );
+  }
+
+  const activeIndex = ORDER_TIMELINE.findIndex((step) => step.key === status);
+
+  return (
+    <ol className="order-timeline">
+      {ORDER_TIMELINE.map((step, index) => {
+        const isDone = index <= activeIndex;
+        return (
+          <li key={step.key} className={isDone ? "is-done" : ""}>
+            <span className="order-timeline-dot" />
+            <span>{step.label}</span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
 
 function OrderDetailPage() {
   const { id } = useParams();
@@ -19,143 +42,201 @@ function OrderDetailPage() {
   const [order, setOrder] = useState(null);
   const [status, setStatus] = useState("loading");
   const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  usePageTitle(order ? `Đơn #${order.id}` : "Chi tiết đơn");
+
+  async function loadOrder() {
+    setStatus("loading");
+    setError("");
+
+    try {
+      const data = await getOrder(id);
+      setOrder(data);
+      setStatus("success");
+    } catch {
+      setError("Không tải được chi tiết đơn hàng.");
+      setStatus("error");
+    }
+  }
 
   useEffect(() => {
-    async function loadOrder() {
-      if (!isAuthenticated) {
-        return;
-      }
+    if (isAuthenticated) {
+      loadOrder();
+    }
+  }, [id, isAuthenticated]);
 
-      setStatus("loading");
-      setError("");
-
-      try {
-        const data = await getOrder(id);
-        setOrder(data);
-        setStatus("success");
-      } catch {
-        setError("Không tải được chi tiết đơn hàng.");
-        setStatus("error");
-      }
+  async function handleCancel() {
+    if (!window.confirm("Hủy đơn hàng này?")) {
+      return;
     }
 
-    loadOrder();
-  }, [id, isAuthenticated]);
+    setActionError("");
+    setIsCancelling(true);
+
+    try {
+      const data = await cancelOrder(id);
+      setOrder(data);
+    } catch (err) {
+      setActionError(
+        err?.response?.data?.detail || "Không thể hủy đơn hàng.",
+      );
+    } finally {
+      setIsCancelling(false);
+    }
+  }
+
+  const canCancel =
+    order && ["pending", "processing"].includes(order.status);
 
   if (authStatus === "loading") {
     return (
-      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-        <p className="text-zinc-600">Đang kiểm tra đăng nhập...</p>
+      <main className="cart-page">
+        <div className="page-container py-10">
+          <p className="text-slate-500">Đang kiểm tra đăng nhập...</p>
+        </div>
       </main>
     );
   }
 
   if (!isAuthenticated) {
     return (
-      <main className="mx-auto max-w-3xl px-4 py-14 text-center sm:px-6">
-        <h1 className="text-3xl font-bold text-zinc-950">Chi tiết đơn hàng</h1>
-        <p className="mt-3 text-zinc-600">Bạn cần đăng nhập để xem đơn hàng.</p>
-        <Link
-          to="/login"
-          className="mt-6 inline-block rounded-md bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
-        >
-          Đăng nhập
-        </Link>
+      <main className="cart-page">
+        <div className="page-container py-14">
+          <div className="cart-guest-panel">
+            <h2>Chi tiết đơn hàng</h2>
+            <p>Bạn cần đăng nhập để xem đơn.</p>
+            <Link
+              to={`/login?next=/orders/${id}`}
+              className="btn-primary rounded-xl px-7 py-3"
+            >
+              Đăng nhập
+            </Link>
+          </div>
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-      <Link className="text-sm font-semibold text-blue-700" to="/orders">
-        Quay lại đơn hàng
-      </Link>
+    <main className="cart-page">
+      <div className="page-container py-8 sm:py-10">
+        <Link to="/orders" className="order-back-link">
+          ← Quay lại đơn hàng
+        </Link>
 
-      {status === "loading" && (
-        <p className="mt-6 text-zinc-600">Đang tải chi tiết đơn...</p>
-      )}
+        {status === "loading" && (
+          <div className="order-detail-skeleton skeleton-shimmer" />
+        )}
 
-      {status === "error" && (
-        <p className="mt-6 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </p>
-      )}
+        {status === "error" && <p className="order-alert is-error">{error}</p>}
+        {actionError && <p className="order-alert is-error">{actionError}</p>}
 
-      {order && (
-        <>
-          <section className="mt-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h1 className="text-3xl font-bold text-zinc-950">
-                  Đơn hàng #{order.id}
-                </h1>
-                <p className="mt-2 text-zinc-500">
-                  {new Date(order.created_at).toLocaleString("vi-VN")}
-                </p>
-              </div>
-              <div className="text-left sm:text-right">
-                <span className="inline-block rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">
-                  {statusLabel[order.status] || order.status}
-                </span>
-                {Number(order.discount_amount) > 0 && (
-                  <p className="mt-2 text-sm text-emerald-700">
-                    Voucher {order.voucher_code}: -
-                    {formatCurrency(order.discount_amount)}
-                  </p>
-                )}
-                <p className="mt-3 text-2xl font-bold text-blue-700">
-                  {formatCurrency(order.total_price)}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-6 grid gap-4 border-t border-zinc-200 pt-6 sm:grid-cols-3">
-              <div>
-                <p className="text-sm text-zinc-500">Người nhận</p>
-                <p className="mt-1 font-semibold text-zinc-950">{order.full_name}</p>
-              </div>
-              <div>
-                <p className="text-sm text-zinc-500">Số điện thoại</p>
-                <p className="mt-1 font-semibold text-zinc-950">{order.phone}</p>
-              </div>
-              <div>
-                <p className="text-sm text-zinc-500">Địa chỉ</p>
-                <p className="mt-1 font-semibold text-zinc-950">{order.address}</p>
-              </div>
-            </div>
-
-            {order.note && (
-              <div className="mt-4 rounded-md bg-zinc-50 p-4 text-sm text-zinc-700">
-                {order.note}
-              </div>
-            )}
-          </section>
-
-          <section className="mt-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-zinc-950">Sản phẩm</h2>
-            <div className="mt-4 divide-y divide-zinc-200">
-              {order.items.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex justify-between gap-4 py-4 text-sm"
-                >
-                  <div>
-                    <p className="font-semibold text-zinc-950">
-                      {item.product_name}
-                    </p>
-                    <p className="mt-1 text-zinc-500">
-                      {item.quantity} x {formatCurrency(item.price)}
-                    </p>
-                  </div>
-                  <p className="font-bold text-blue-700">
-                    {formatCurrency(item.total_price)}
-                  </p>
+        {order && (
+          <div className="order-detail-layout">
+            <section className="order-detail-main">
+              <header className="order-detail-head">
+                <div>
+                  <h1>Đơn hàng #{order.id}</h1>
+                  <p>{new Date(order.created_at).toLocaleString("vi-VN")}</p>
                 </div>
-              ))}
-            </div>
-          </section>
-        </>
-      )}
+                <span
+                  className={`order-status-badge is-${orderStatusTones[order.status] || "pending"}`}
+                >
+                  {orderStatusLabels[order.status] || order.status}
+                </span>
+              </header>
+
+              <OrderTimeline status={order.status} />
+
+              <div className="order-detail-grid">
+                <div>
+                  <h3>Người nhận</h3>
+                  <p>{order.full_name}</p>
+                  <p className="is-muted">{order.phone}</p>
+                </div>
+                <div>
+                  <h3>Địa chỉ giao</h3>
+                  <p>{order.address}</p>
+                </div>
+                <div>
+                  <h3>Thanh toán</h3>
+                  <p>{paymentMethodLabels[order.payment_method] || order.payment_method}</p>
+                </div>
+              </div>
+
+              {order.note && (
+                <div className="order-detail-note">
+                  <h3>Ghi chú</h3>
+                  <p>{order.note}</p>
+                </div>
+              )}
+
+              <section className="order-detail-items">
+                <h2>Sản phẩm</h2>
+                <ul>
+                  {order.items.map((item) => (
+                    <li key={item.id}>
+                      <div>
+                        <p className="order-item-name">{item.product_name}</p>
+                        {item.variant_name && (
+                          <p className="order-item-variant">{item.variant_name}</p>
+                        )}
+                        <p className="order-item-qty">
+                          {item.quantity} × {formatCurrency(item.price)}
+                        </p>
+                      </div>
+                      <strong>{formatCurrency(item.total_price)}</strong>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+
+              {canCancel && (
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  disabled={isCancelling}
+                  className="btn-secondary rounded-xl px-5 py-2.5 text-red-700"
+                >
+                  {isCancelling ? "Đang hủy..." : "Hủy đơn hàng"}
+                </button>
+              )}
+            </section>
+
+            <aside className="order-detail-summary">
+              <h2>Tóm tắt</h2>
+              <dl>
+                <div>
+                  <dt>Tạm tính</dt>
+                  <dd>{formatCurrency(order.subtotal)}</dd>
+                </div>
+                <div>
+                  <dt>Phí ship</dt>
+                  <dd>
+                    {Number(order.shipping_fee) === 0
+                      ? "Miễn phí"
+                      : formatCurrency(order.shipping_fee)}
+                  </dd>
+                </div>
+                {Number(order.discount_amount) > 0 && (
+                  <div>
+                    <dt>Voucher {order.voucher_code}</dt>
+                    <dd className="is-discount">
+                      -{formatCurrency(order.discount_amount)}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+              <div className="order-detail-total">
+                <span>Tổng</span>
+                <strong>{formatCurrency(order.total_price)}</strong>
+              </div>
+            </aside>
+          </div>
+        )}
+      </div>
     </main>
   );
 }

@@ -7,6 +7,7 @@ from .models import (
     Category,
     Product,
     ProductImage,
+    ProductReview,
     ProductVariant,
     Promotion,
     PromotionProduct,
@@ -411,6 +412,15 @@ class ProductVariantWriteSerializer(serializers.ModelSerializer):
 
         return attrs
 
+    def create(self, validated_data):
+        product = validated_data["product"]
+        size = validated_data.get("size", "one-size")
+        color = validated_data.get("color", "")
+        suffix = size if not color else f"{size}-{color}"
+        validated_data.setdefault("price", product.base_price)
+        validated_data["sku"] = build_default_sku(product, django_slugify(suffix))
+        return super().create(validated_data)
+
 
 class PromotionProductSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
@@ -550,3 +560,41 @@ class PromotionSerializer(serializers.ModelSerializer):
             }
             for link in links
         ]
+
+
+class ProductReviewUserSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    username = serializers.CharField()
+
+
+class ProductReviewSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="user.username", read_only=True)
+
+    class Meta:
+        model = ProductReview
+        fields = (
+            "id",
+            "product",
+            "username",
+            "rating",
+            "title",
+            "comment",
+            "created_at",
+        )
+        read_only_fields = ("id", "username", "created_at")
+
+
+class ProductReviewWriteSerializer(serializers.ModelSerializer):
+    product_id = serializers.PrimaryKeyRelatedField(
+        queryset=Product.objects.filter(is_active=True),
+        source="product",
+        write_only=True,
+    )
+
+    class Meta:
+        model = ProductReview
+        fields = ("product_id", "rating", "title", "comment")
+
+    def create(self, validated_data):
+        validated_data["user"] = self.context["request"].user
+        return super().create(validated_data)

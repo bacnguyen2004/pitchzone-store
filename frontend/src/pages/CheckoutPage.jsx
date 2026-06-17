@@ -6,7 +6,9 @@ import { CartIcon, CheckIcon } from "../components/AuthIcons";
 import CheckoutAddressSection from "../components/CheckoutAddressSection";
 import CheckoutVoucherSection from "../components/CheckoutVoucherSection";
 import { getCart } from "../api/cart";
-import { checkoutOrder } from "../api/orders";
+import { checkoutOrder, getShippingQuote } from "../api/orders";
+import { FREE_SHIPPING_THRESHOLD } from "../config/shipping";
+import { notifyCartUpdated } from "../hooks/useCartCount";
 import { getUserAddresses } from "../api/userAddresses";
 import { useAuth } from "../contexts/AuthContext";
 import { formatCurrency, getMainImage, resolveMediaUrl } from "../utils/format";
@@ -20,8 +22,6 @@ import {
   ShieldCheckIcon,
   TruckIcon,
 } from "../components/StoreIcons";
-
-const FREE_SHIPPING_THRESHOLD = 2_000_000;
 
 const CHECKOUT_STEPS = [
   { id: "cart", label: "Giỏ hàng", to: "/cart" },
@@ -153,6 +153,7 @@ function CheckoutSummary({
   totalPrice,
   hasFreeShipping,
   shippingRemaining,
+  shippingFee,
   paymentMethod,
   isSubmitting,
   showActions = true,
@@ -267,8 +268,10 @@ function CheckoutSummary({
           )}
           <div>
             <dt>Phí vận chuyển</dt>
-            <dd className={hasFreeShipping ? "is-free" : ""}>
-              {hasFreeShipping ? "Miễn phí" : "Tính khi thanh toán"}
+            <dd className={Number(shippingFee) === 0 ? "is-free" : ""}>
+              {Number(shippingFee) === 0
+                ? "Miễn phí"
+                : formatCurrency(shippingFee)}
             </dd>
           </div>
           <div>
@@ -326,19 +329,12 @@ function CheckoutSection({
   );
 }
 
-function buildOrderNote(paymentMethod, note) {
-  const method = PAYMENT_METHODS.find((item) => item.id === paymentMethod);
-  const paymentLine = `Hình thức thanh toán: ${method?.label || paymentMethod}`;
-  const trimmed = note.trim();
-
-  return trimmed ? `${paymentLine}\n\n${trimmed}` : paymentLine;
-}
-
 function applySavedAddress(address) {
   return {
     full_name: address.full_name,
     phone: address.phone,
     address: address.full_address,
+    city: address.city || "",
   };
 }
 
@@ -355,14 +351,51 @@ function CheckoutPage() {
     full_name: "",
     phone: "",
     address: "",
+    city: "",
     note: "",
   });
   const [paymentMethod, setPaymentMethod] = useState("cod");
+  const [shippingFee, setShippingFee] = useState(0);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [voucherCode, setVoucherCode] = useState("");
   const [voucherDiscount, setVoucherDiscount] = useState(0);
+
+  const subtotal = Number(cart?.total_price || 0);
+  const totalPrice = Math.max(subtotal + Number(shippingFee) - voucherDiscount, 0);
+  const shippingRemaining = Math.max(FREE_SHIPPING_THRESHOLD - subtotal, 0);
+  const hasFreeShipping = subtotal >= FREE_SHIPPING_THRESHOLD;
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadShippingFee() {
+      if (!isAuthenticated || subtotal <= 0) {
+        setShippingFee(0);
+        return;
+      }
+
+      try {
+        const quote = await getShippingQuote({
+          subtotal,
+          city: form.city,
+        });
+        if (!ignore) {
+          setShippingFee(Number(quote.shipping_fee || 0));
+        }
+      } catch {
+        if (!ignore) {
+          setShippingFee(0);
+        }
+      }
+    }
+
+    loadShippingFee();
+    return () => {
+      ignore = true;
+    };
+  }, [isAuthenticated, subtotal, form.city]);
 
   useEffect(() => {
     let ignore = false;
@@ -491,12 +524,14 @@ function CheckoutPage() {
     setIsSubmitting(true);
 
     try {
-      await checkoutOrder({
+      const order = await checkoutOrder({
         ...form,
-        note: buildOrderNote(paymentMethod, form.note),
+        note: form.note,
+        payment_method: paymentMethod,
         voucher_code: voucherCode,
       });
-      navigate("/orders");
+      notifyCartUpdated();
+      navigate(`/orders/success/${order.id}`);
     } catch (err) {
       const detail = err?.response?.data?.detail;
       setError(
@@ -534,7 +569,7 @@ function CheckoutPage() {
             <h2>Chưa đăng nhập</h2>
             <p>Đăng nhập để tiếp tục thanh toán.</p>
             <div className="cart-guest-actions">
-              <Link to="/login" className="btn-primary rounded-xl px-7 py-3">
+              <Link to="/login?next=/checkout" className="btn-primary rounded-xl px-7 py-3">
                 Đăng nhập
               </Link>
               <Link to="/register" className="btn-secondary rounded-xl px-7 py-3">
@@ -549,10 +584,6 @@ function CheckoutPage() {
 
   const items = cart?.items || [];
   const isLoading = status === "loading" && !cart;
-  const subtotal = Number(cart?.total_price || 0);
-  const totalPrice = Math.max(subtotal - voucherDiscount, 0);
-  const shippingRemaining = Math.max(FREE_SHIPPING_THRESHOLD - subtotal, 0);
-  const hasFreeShipping = subtotal >= FREE_SHIPPING_THRESHOLD;
 
   if (status === "success" && items.length === 0) {
     return (
@@ -628,10 +659,11 @@ function CheckoutPage() {
                       phone: form.phone,
                     }}
                     onContactChange={handleChange}
-                    onManualAddressChange={(fullAddress) =>
+                    onManualAddressChange={(fullAddress, city) =>
                       setForm((current) => ({
                         ...current,
                         address: fullAddress,
+                        city: city || "",
                       }))
                     }
                     onManualValidityChange={setManualAddressValid}
@@ -719,6 +751,7 @@ function CheckoutPage() {
                   totalPrice={totalPrice}
                   hasFreeShipping={hasFreeShipping}
                   shippingRemaining={shippingRemaining}
+                  shippingFee={shippingFee}
                   paymentMethod={paymentMethod}
                   isSubmitting={isSubmitting}
                 />
@@ -742,6 +775,7 @@ function CheckoutPage() {
                   totalPrice={totalPrice}
                   hasFreeShipping={hasFreeShipping}
                   shippingRemaining={shippingRemaining}
+                  shippingFee={shippingFee}
                   paymentMethod={paymentMethod}
                   isSubmitting={isSubmitting}
                   showActions={false}

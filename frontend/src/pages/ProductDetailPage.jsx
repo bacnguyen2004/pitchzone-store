@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { addCartItem } from "../api/cart";
+import ProductReviews from "../components/ProductReviews";
+import { notifyCartUpdated } from "../hooks/useCartCount";
+import { usePageTitle } from "../hooks/usePageTitle";
+import { useToast } from "../contexts/ToastContext";
 import { getProduct, getProducts } from "../api/catalog";
 import AnimateIn from "../components/AnimateIn";
 import { CartIcon, CheckIcon, ErrorIcon } from "../components/AuthIcons";
@@ -186,9 +190,12 @@ function ProductDetailPage() {
     fetchRelated();
   }, [product]);
 
+  const toast = useToast();
+  usePageTitle(product?.name || "Chi tiết sản phẩm");
+
   async function handleAddToCart() {
     if (!isAuthenticated) {
-      navigate("/login");
+      navigate(`/login?next=/products/${slug}`);
       return;
     }
 
@@ -206,6 +213,8 @@ function ProductDetailPage() {
       }
 
       await addCartItem(payload);
+      notifyCartUpdated();
+      toast?.showToast?.("Đã thêm vào giỏ hàng.");
       setCartMessageType("success");
       setCartMessage("Đã thêm vào giỏ hàng.");
     } catch {
@@ -526,6 +535,8 @@ function ProductDetailPage() {
               </ul>
             </AnimateIn>
           </div>
+
+          <ProductReviews product={product} />
 
           <section className="product-detail-desc-panel">
             <h2 className="product-detail-section-title">Mô tả sản phẩm</h2>

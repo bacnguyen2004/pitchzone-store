@@ -191,3 +191,8 @@ export async function updateAdminVariant(variantId, payload) {
   const response = await api.patch(`/variants/${variantId}/`, payload);
   return response.data;
 }
+
+export async function createAdminVariant(payload) {
+  const response = await api.post("/variants/", payload);
+  return response.data;
+}

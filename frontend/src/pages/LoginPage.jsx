@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import authVisual from "../assets/auth-login.jpg";
 import AuthAlert from "../components/AuthAlert";
@@ -11,7 +11,10 @@ import { getLoginError } from "../utils/authErrors";
 
 function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated, login } = useAuth();
+  const nextPath =
+    new URLSearchParams(location.search).get("next") || "/";
 
   const [form, setForm] = useState({
     username: "",
@@ -42,7 +45,7 @@ function LoginPage() {
 
     try {
       await login(form);
-      navigate("/");
+      navigate(nextPath.startsWith("/") ? nextPath : "/");
     } catch {
       setAlert(getLoginError());
     } finally {
@@ -112,6 +115,15 @@ function LoginPage() {
           placeholder="Nhập mật khẩu"
           icon={<LockIcon />}
         />
+
+        <div className="text-right">
+          <Link
+            to="/forgot-password"
+            className="text-sm font-medium text-emerald-600 hover:text-emerald-700"
+          >
+            Quên mật khẩu?
+          </Link>
+        </div>
 
         <button
           type="submit"

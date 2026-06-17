@@ -8,7 +8,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from catalog.models import Brand, Category, Product, Promotion
+from catalog.models import Brand, Category, Product, ProductVariant, Promotion
 from catalog.serializers import ProductSerializer
 from carts.models import Cart
 from catalog.services.pricing import get_variant_pricing
@@ -18,16 +18,27 @@ from .serializers import (
     OrderSerializer,
     OrderStatusUpdateSerializer,
     PublicVoucherSerializer,
+    ShippingQuoteSerializer,
     VoucherValidateSerializer,
     VoucherWriteSerializer,
 )
 from .models import Order, OrderItem, Voucher
 from .permissions import IsAdminUser
+from .services.email import send_order_confirmation
+from .services.shipping import calculate_shipping_fee
 from .services.vouchers import (
     compute_voucher_discount,
     get_voucher_by_code,
     validate_voucher,
 )
+
+
+def restore_order_stock(order):
+    for item in order.items.select_related("variant"):
+        if item.variant_id:
+            ProductVariant.objects.filter(pk=item.variant_id).update(
+                stock=F("stock") + item.quantity
+            )
 
 
 class OrderViewSet(viewsets.ReadOnlyModelViewSet):
@@ -40,6 +51,23 @@ class OrderViewSet(viewsets.ReadOnlyModelViewSet):
             "items__product",
             "items__variant",
         ).order_by("-created_at")
+
+    @action(detail=False, methods=["get"], url_path="shipping-quote")
+    def shipping_quote(self, request):
+        serializer = ShippingQuoteSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        subtotal = serializer.validated_data["subtotal"]
+        city = serializer.validated_data.get("city", "")
+        shipping_fee = calculate_shipping_fee(subtotal, city)
+
+        return Response(
+            {
+                "subtotal": subtotal,
+                "city": city,
+                "shipping_fee": shipping_fee,
+                "total_with_shipping": subtotal + shipping_fee,
+            }
+        )
 
     @action(detail=False, methods=["post"], url_path="checkout")
     def checkout(self, request):
@@ -59,22 +87,36 @@ class OrderViewSet(viewsets.ReadOnlyModelViewSet):
             )
 
         with transaction.atomic():
-            cart_items = list(cart.items.select_related("variant", "variant__product"))
+            cart_items = list(
+                cart.items.select_related("variant", "variant__product")
+            )
+            variant_ids = [item.variant_id for item in cart_items]
+            locked_variants = {
+                variant.id: variant
+                for variant in ProductVariant.objects.select_for_update().filter(
+                    id__in=variant_ids
+                )
+            }
 
             for item in cart_items:
-                variant = item.variant
-                if item.quantity > variant.stock:
+                variant = locked_variants.get(item.variant_id)
+                if not variant or item.quantity > variant.stock:
+                    available = variant.stock if variant else 0
+                    name = variant.product.name if variant else "sản phẩm"
+                    variant_label = variant.name if variant else ""
                     return Response(
                         {
                             "detail": (
-                                f"Not enough stock for {variant.product.name} "
-                                f"({variant.name}). Available: {variant.stock}."
+                                f"Not enough stock for {name} "
+                                f"({variant_label}). Available: {available}."
                             )
                         },
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
             subtotal = sum(item.total_price for item in cart_items)
+            city = serializer.validated_data.get("city", "")
+            shipping_fee = calculate_shipping_fee(subtotal, city)
             voucher_code = serializer.validated_data.get("voucher_code", "")
             discount_amount = 0
             voucher = None
@@ -84,15 +126,21 @@ class OrderViewSet(viewsets.ReadOnlyModelViewSet):
                 validate_voucher(voucher, subtotal)
                 discount_amount = compute_voucher_discount(subtotal, voucher)
 
-            total_price = subtotal - discount_amount
+            total_price = subtotal + shipping_fee - discount_amount
 
             order = Order.objects.create(
                 user=request.user,
                 full_name=serializer.validated_data["full_name"],
                 phone=serializer.validated_data["phone"],
                 address=serializer.validated_data["address"],
+                city=city,
                 note=serializer.validated_data.get("note", ""),
+                payment_method=serializer.validated_data.get(
+                    "payment_method",
+                    Order.PAYMENT_COD,
+                ),
                 subtotal=subtotal,
+                shipping_fee=shipping_fee,
                 discount_amount=discount_amount,
                 voucher_code=voucher.code if voucher else "",
                 total_price=total_price,
@@ -100,7 +148,7 @@ class OrderViewSet(viewsets.ReadOnlyModelViewSet):
 
             order_items = []
             for item in cart_items:
-                variant = item.variant
+                variant = locked_variants[item.variant_id]
                 product = variant.product
                 item_total = item.total_price
                 pricing = get_variant_pricing(variant)
@@ -129,17 +177,44 @@ class OrderViewSet(viewsets.ReadOnlyModelViewSet):
             OrderItem.objects.bulk_create(order_items)
 
             if voucher:
-                Voucher.objects.filter(pk=voucher.pk).update(
-                    used_count=voucher.used_count + 1
-                )
+                locked_voucher = Voucher.objects.select_for_update().get(pk=voucher.pk)
+                locked_voucher.used_count += 1
+                locked_voucher.save(update_fields=["used_count"])
 
             cart.items.all().delete()
+
+        order = Order.objects.prefetch_related(
+            "items",
+            "items__product",
+            "items__variant",
+        ).get(pk=order.pk)
+        send_order_confirmation(order)
 
         return Response(
             OrderSerializer(order).data,
             status=status.HTTP_201_CREATED,
         )
-    
+
+    @action(detail=True, methods=["post"], url_path="cancel")
+    def cancel(self, request, pk=None):
+        order = self.get_object()
+        if order.status in {"completed", "cancelled", "shipping"}:
+            return Response(
+                {"detail": "Đơn hàng này không thể hủy."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            order = Order.objects.select_for_update().get(pk=order.pk)
+            if order.status == "cancelled":
+                return Response(OrderSerializer(order).data)
+            order.status = "cancelled"
+            order.save(update_fields=["status"])
+            restore_order_stock(order)
+
+        order = self.get_queryset().get(pk=order.pk)
+        return Response(OrderSerializer(order).data)
+
     @action(
         detail=False,
         methods=["get"],
@@ -184,12 +259,23 @@ class OrderViewSet(viewsets.ReadOnlyModelViewSet):
     )
     def update_status(self, request, pk=None):
         order = Order.objects.get(pk=pk)
+        previous_status = order.status
         serializer = OrderStatusUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        next_status = serializer.validated_data["status"]
 
-        order.status = serializer.validated_data["status"]
-        order.save(update_fields=["status"])
+        with transaction.atomic():
+            order = Order.objects.select_for_update().get(pk=pk)
+            if (
+                next_status == "cancelled"
+                and previous_status != "cancelled"
+                and order.status != "cancelled"
+            ):
+                restore_order_stock(order)
+            order.status = next_status
+            order.save(update_fields=["status"])
 
+        order = Order.objects.prefetch_related("items").get(pk=pk)
         return Response(OrderSerializer(order).data)
 
 

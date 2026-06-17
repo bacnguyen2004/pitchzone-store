@@ -22,6 +22,7 @@ import AdminTable, {
   AdminTableActions,
   AdminTableEmpty,
 } from "../components/admin/AdminTable";
+import AdminProductVariantsModal from "../components/admin/AdminProductVariantsModal";
 import AdminToggle from "../components/admin/AdminToggle";
 import AdminToolbar from "../components/admin/AdminToolbar";
 import { useAdminList } from "../hooks/useAdminList";
@@ -86,6 +87,7 @@ function AdminProductsPage() {
   const [message, setMessage] = useState("");
   const [visibilityFilter, setVisibilityFilter] = useState("");
   const [togglingIds, setTogglingIds] = useState(() => new Set());
+  const [variantProduct, setVariantProduct] = useState(null);
 
   const extraParams = useMemo(() => {
     if (visibilityFilter === "active") {
@@ -375,10 +377,19 @@ function AdminProductsPage() {
                       />
                     </td>
                     <td className="is-actions">
-                      <AdminTableActions
-                        onEdit={() => openEditModal(product)}
-                        onDelete={() => setDeleteTarget(product)}
-                      />
+                      <div className="admin-actions">
+                        <button
+                          type="button"
+                          onClick={() => setVariantProduct(product)}
+                          className="admin-btn admin-btn-secondary"
+                        >
+                          Biến thể
+                        </button>
+                        <AdminTableActions
+                          onEdit={() => openEditModal(product)}
+                          onDelete={() => setDeleteTarget(product)}
+                        />
+                      </div>
                     </td>
                   </tr>
                 );
@@ -532,6 +543,13 @@ function AdminProductsPage() {
           </div>
         </form>
       </AdminModal>
+
+      <AdminProductVariantsModal
+        product={variantProduct}
+        open={Boolean(variantProduct)}
+        onClose={() => setVariantProduct(null)}
+        onSaved={load}
+      />
 
       <AdminConfirmDialog
         open={Boolean(deleteTarget)}

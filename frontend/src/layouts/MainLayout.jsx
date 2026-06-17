@@ -8,6 +8,7 @@ import UserMenu from "../components/UserMenu";
 import VoucherCorner from "../components/VoucherCorner";
 import { siteNavItems } from "../config/siteNav";
 import { useAuth } from "../contexts/AuthContext";
+import { useCartCount } from "../hooks/useCartCount";
 
 const navLinkClass = ({ isActive }) =>
   `shrink-0 rounded-lg px-3 py-2 text-sm font-medium transition ${
@@ -57,6 +58,7 @@ function SiteNav({ linkClassName, menuMode = "desktop" }) {
 
 function MainLayout() {
   const { user, isAuthenticated, logout } = useAuth();
+  const { count: cartCount } = useCartCount();
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
@@ -71,9 +73,16 @@ function MainLayout() {
           </nav>
 
           <div className="flex items-center gap-1 sm:gap-2">
-            <NavLink className={iconActionClass} to="/cart" title="Giỏ hàng">
+            <NavLink
+              className={({ isActive }) => `${iconActionClass({ isActive })} relative`}
+              to="/cart"
+              title="Giỏ hàng"
+            >
               <CartIcon />
               <span className="hidden sm:inline">Giỏ hàng</span>
+              {cartCount > 0 && (
+                <span className="header-cart-badge">{cartCount > 99 ? "99+" : cartCount}</span>
+              )}
             </NavLink>
 
             {isAuthenticated ? (

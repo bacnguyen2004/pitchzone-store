@@ -152,9 +152,9 @@ function AddressSelector({ onChange, onValidityChange }) {
   );
 
   useEffect(() => {
-    onChange(fullAddress);
+    onChange(fullAddress, labels.provinceName);
     onValidityChange?.(isComplete);
-  }, [fullAddress, isComplete]);
+  }, [fullAddress, isComplete, labels.provinceName]);
 
   function handleProvinceChange(event) {
     setParts({

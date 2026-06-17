@@ -6,8 +6,10 @@ from .views import (
     AddressViewSet,
     ChangePasswordView,
     CustomerProfileView,
+    ForgotPasswordView,
     MeView,
     RegisterView,
+    ResetPasswordView,
 )
 
 router = DefaultRouter()
@@ -19,5 +21,7 @@ urlpatterns = [
     path("refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("me/", MeView.as_view(), name="me"),
     path("change-password/", ChangePasswordView.as_view(), name="change-password"),
+    path("forgot-password/", ForgotPasswordView.as_view(), name="forgot-password"),
+    path("reset-password/", ResetPasswordView.as_view(), name="reset-password"),
     path("profile/", CustomerProfileView.as_view(), name="customer-profile"),
 ] + router.urls
