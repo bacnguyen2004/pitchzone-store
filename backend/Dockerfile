@@ -16,8 +16,9 @@ RUN pip install --upgrade pip \
 
 COPY . .
 
-RUN python manage.py collectstatic --noinput
+RUN chmod +x entrypoint.sh \
+    && python manage.py collectstatic --noinput
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "python manage.py migrate && gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000}"]
+ENTRYPOINT ["./entrypoint.sh"]

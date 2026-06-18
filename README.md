@@ -372,32 +372,34 @@ python manage.py seed_catalog        # Upload ảnh mẫu lên Cloudinary
 
 Ảnh tĩnh UI (banner, logo trong `frontend/src/assets/`) vẫn bundle cùng frontend — không qua Cloudinary.
 
-### Deploy trên Render — đưa data lên production
+### Deploy trên Render — đưa data (không cần Shell)
 
-Render **chỉ tự chạy `migrate`** khi start container. Dữ liệu sản phẩm / admin **phải seed thủ công** qua Shell.
+> **Shell trên Render free có phí** — project tự seed khi container start qua `entrypoint.sh`.
 
 **Bước 1 — Environment (Dashboard → `pitchzone-api` → Environment):**
 
-| Biến | Bắt buộc |
-|------|----------|
-| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Có — ảnh SP |
-| `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET` | Nếu dùng VNPay |
-| `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` | Nếu gửi email |
+| Biến | Bắt buộc | Ghi chú |
+|------|----------|---------|
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Có | Ảnh sản phẩm |
+| `DJANGO_SUPERUSER_PASSWORD` | Có | Tạo admin tự động |
+| `DJANGO_SUPERUSER_EMAIL` | Nên có | Email admin |
+| `DJANGO_SUPERUSER_USERNAME` | Tùy chọn | Mặc định `admin` |
+| `SEED_ON_DEPLOY` | Tùy chọn | `auto` (mặc định): seed khi DB trống |
+| `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET` | Nếu VNPay | |
+| `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` | Nếu email | |
 
-**Bước 2 — Shell (Dashboard → `pitchzone-api` → Shell):**
+Giá trị `SEED_ON_DEPLOY`:
 
-```bash
-# Kiểm tra Cloudinary
-python manage.py check_cloudinary
+| Giá trị | Hành vi |
+|---------|---------|
+| `auto` | Seed **chỉ lần đầu** (chưa có sản phẩm) |
+| `force` | Seed lại mỗi lần deploy |
+| `off` | Không seed |
 
-# Seed toàn bộ demo: sản phẩm + deal + voucher
-python manage.py seed_all
+**Bước 2 — Deploy lại** (Manual Deploy hoặc push Git). Container tự chạy:
 
-# Tạo admin (đặt DJANGO_SUPERUSER_PASSWORD trong Environment trước)
-python manage.py create_admin
-
-# Hoặc tương tác
-python manage.py createsuperuser
+```
+migrate → bootstrap_deploy (create_admin + seed_all) → gunicorn
 ```
 
 **Bước 3 — Đăng nhập:**

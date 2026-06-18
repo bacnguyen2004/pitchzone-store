@@ -57,6 +57,15 @@ services:
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
+      # Tự seed + tạo admin khi start — không cần Shell (Render free)
+      - key: SEED_ON_DEPLOY
+        value: auto
+      - key: DJANGO_SUPERUSER_USERNAME
+        value: admin
+      - key: DJANGO_SUPERUSER_EMAIL
+        sync: false
+      - key: DJANGO_SUPERUSER_PASSWORD
+        sync: false
 
   - type: web
     name: pitchzone-web
