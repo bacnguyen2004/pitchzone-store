@@ -187,10 +187,11 @@ flowchart TB
     subgraph Backend
         API[Django REST API<br/>localhost:8000]
         DB[(PostgreSQL / SQLite)]
-        MEDIA[/media files/]
+        MEDIA[Cloudinary / media local]
     end
 
     subgraph External
+        CDN[Cloudinary CDN]
         VNP[VNPay Sandbox]
         GHN[GHN API]
         ADDR[provinces.open-api.vn]
@@ -199,7 +200,8 @@ flowchart TB
 
     FE -->|JWT + REST| API
     API --> DB
-    API --> MEDIA
+    API -->|Upload ảnh| CDN
+    CDN --> MEDIA
     FE -->|Địa chỉ VN| ADDR
     API -->|Payment URL| VNP
     VNP -->|Return / IPN| API
@@ -315,6 +317,10 @@ copy .env.example .env        # Windows
 | `VNPAY_IPN_URL` | URL IPN backend | `http://127.0.0.1:8000/api/payments/vnpay/ipn/` |
 | `GHN_TOKEN`, `GHN_SHOP_ID` | Token GHN | Tùy chọn |
 | `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` | Gmail App Password | Tùy chọn |
+| `CLOUDINARY_CLOUD_NAME` | Cloud name | *bắt buộc khi deploy* |
+| `CLOUDINARY_API_KEY` | API key | *bắt buộc khi deploy* |
+| `CLOUDINARY_API_SECRET` | API secret | *bắt buộc khi deploy* |
+| `USE_CLOUDINARY` | Bật Cloudinary (dev) | `True` — mặc định tự bật khi đủ 3 biến trên |
 
 ### Frontend (`frontend/.env`)
 
@@ -324,6 +330,46 @@ copy .env.example .env        # Windows
 | `VITE_ADDRESS_API_BASE` | API địa chỉ VN | `https://provinces.open-api.vn/api/v2` |
 | `VITE_APP_NAME` | Tên tab trình duyệt | `PitchZone` |
 | `VITE_FREE_SHIPPING_THRESHOLD` | Ngưỡng freeship (VND) | `2000000` |
+| `VITE_MEDIA_BASE_URL` | Origin ảnh `/media/` local | *Không cần khi dùng Cloudinary* — API trả URL đầy đủ |
+
+---
+
+## Lưu trữ ảnh (Cloudinary)
+
+Ảnh upload (sản phẩm, danh mục, thương hiệu, avatar) dùng **Cloudinary** khi deploy — filesystem container (Render, Railway, Fly.io…) không giữ file lâu dài.
+
+| Môi trường | Storage |
+|------------|---------|
+| Dev (không cấu hình Cloudinary) | `backend/media/` local |
+| Dev / Production (có 3 biến Cloudinary) | Cloudinary CDN |
+| Test (`manage.py test`) | SQLite + local storage |
+
+### Cấu hình
+
+1. Tạo tài khoản tại [cloudinary.com](https://cloudinary.com/)
+2. Dashboard → **API Keys** → copy `Cloud name`, `API Key`, `API Secret`
+3. Thêm vào `backend/.env`:
+
+```env
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+```
+
+Khi đủ 3 biến, Django tự dùng `MediaCloudinaryStorage`. Không cần đổi model hay frontend — API trả URL dạng `https://res.cloudinary.com/...`.
+
+### Deploy checklist
+
+```bash
+# Sau khi deploy backend với Cloudinary credentials
+python manage.py migrate
+python manage.py seed_catalog        # Upload ảnh mẫu lên Cloudinary
+# hoặc upload lại ảnh qua admin / API
+```
+
+> Ảnh cũ trong `backend/media/` **không** tự migrate. Chạy lại `seed_catalog` hoặc upload lại qua admin.
+
+Ảnh tĩnh UI (banner, logo trong `frontend/src/assets/`) vẫn bundle cùng frontend — không qua Cloudinary.
 
 ---
 
@@ -491,7 +537,8 @@ python manage.py download_product_images  # Tải ảnh SP (nếu cần)
 | Vấn đề | Giải pháp |
 |--------|-----------|
 | CORS lỗi | Thêm origin frontend vào `CORS_ALLOWED_ORIGINS` |
-| Ảnh sản phẩm không hiện | Kiểm tra `VITE_API_BASE_URL`, backend chạy `DEBUG=True` |
+| Ảnh sản phẩm không hiện | Local: kiểm tra `VITE_API_BASE_URL`. Deploy: kiểm tra 3 biến Cloudinary + chạy lại `seed_catalog` |
+| Ảnh mất sau deploy | Bật Cloudinary — filesystem deploy không persistent |
 | Port 5173 bận | Vite tự chuyển 5174 — thêm origin đó vào CORS |
 | Test DB permission denied | Đã xử lý: test tự dùng SQLite `:memory:` |
 | VNPay redirect lỗi chữ ký | Xem mục [Thanh toán VNPay](#thanh-toán-vnpay) |
