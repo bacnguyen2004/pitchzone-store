@@ -61,9 +61,9 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'django.contrib.staticfiles',
     'cloudinary_storage',
     'cloudinary',
-    'django.contrib.staticfiles',
 
     'catalog',
     'accounts',
@@ -210,6 +210,10 @@ if not DEBUG:
     STORAGES["staticfiles"] = {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     }
+
+# django-cloudinary-storage still reads these legacy settings during collectstatic.
+DEFAULT_FILE_STORAGE = STORAGES["default"]["BACKEND"]
+STATICFILES_STORAGE = STORAGES["staticfiles"]["BACKEND"]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
