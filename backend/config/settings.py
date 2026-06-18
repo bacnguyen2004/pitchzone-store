@@ -14,6 +14,12 @@ try:
 except ImportError:
     dj_database_url = None
 
+from config.media_storage import (
+    build_cloudinary_settings,
+    build_storages,
+    should_use_cloudinary,
+)
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -178,32 +184,26 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+# --- Cloudinary (ảnh sản phẩm, danh mục, brand, avatar) ---
 CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME", "")
 CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY", "")
 CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET", "")
-USE_CLOUDINARY = env_bool("USE_CLOUDINARY", False) or all(
-    (CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET)
+# Tự bật khi DEBUG=False (deploy) nếu đã có đủ 3 biến CLOUDINARY_*
+USE_CLOUDINARY = should_use_cloudinary(
+    enabled=env_bool("USE_CLOUDINARY", not DEBUG),
+    cloud_name=CLOUDINARY_CLOUD_NAME,
+    api_key=CLOUDINARY_API_KEY,
+    api_secret=CLOUDINARY_API_SECRET,
 )
 
-STORAGES = {
-    "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
-    },
-    "staticfiles": {
-        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
-    },
-}
+STORAGES = build_storages(use_cloudinary=USE_CLOUDINARY)
 
-if USE_CLOUDINARY and "test" not in sys.argv:
-    CLOUDINARY_STORAGE = {
-        "CLOUD_NAME": CLOUDINARY_CLOUD_NAME,
-        "API_KEY": CLOUDINARY_API_KEY,
-        "API_SECRET": CLOUDINARY_API_SECRET,
-        "SECURE": True,
-    }
-    STORAGES["default"] = {
-        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
-    }
+if USE_CLOUDINARY:
+    CLOUDINARY_STORAGE = build_cloudinary_settings(
+        cloud_name=CLOUDINARY_CLOUD_NAME,
+        api_key=CLOUDINARY_API_KEY,
+        api_secret=CLOUDINARY_API_SECRET,
+    )
 
 if not DEBUG:
     MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
