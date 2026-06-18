@@ -26,6 +26,7 @@
 - [Yêu cầu hệ thống](#yêu-cầu-hệ-thống)
 - [Cài đặt](#cài-đặt)
 - [Biến môi trường](#biến-môi-trường)
+- [Lưu trữ ảnh (Cloudinary)](#lưu-trữ-ảnh-cloudinary)
 - [Seed dữ liệu mẫu](#seed-dữ-liệu-mẫu)
 - [Chạy development](#chạy-development)
 - [API chính](#api-chính)
