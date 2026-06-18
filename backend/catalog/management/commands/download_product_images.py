@@ -14,10 +14,12 @@ from PIL import Image, UnidentifiedImageError
 from catalog.models import Product, ProductImage
 
 try:
-    from catalog.services.product_image_sources import PRODUCT_PHOTO_IDS, photo_url
+    from catalog.services.product_image_sources import photo_url, resolve_photo_id
 except ImportError:
-    PRODUCT_PHOTO_IDS = {}
     photo_url = None
+
+    def resolve_photo_id(slug, category_slug=""):
+        return None
 
 try:
     from ddgs import DDGS
@@ -247,7 +249,8 @@ class Command(BaseCommand):
 
     def get_candidate_urls(self, product, ddgs, max_results, use_search):
         urls = []
-        photo_id = PRODUCT_PHOTO_IDS.get(product.slug)
+        category_slug = product.category.slug if product.category else ""
+        photo_id = resolve_photo_id(product.slug, category_slug)
         if photo_id and photo_url:
             urls.append(photo_url(photo_id))
 

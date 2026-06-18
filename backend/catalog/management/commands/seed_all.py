@@ -9,6 +9,9 @@ class Command(BaseCommand):
         self.stdout.write("→ seed_catalog …")
         call_command("seed_catalog")
 
+        self.stdout.write("→ download_product_images (Pexels) …")
+        call_command("download_product_images", force=True, no_search=True)
+
         self.stdout.write("→ seed_promotions …")
         call_command("seed_promotions")
 
