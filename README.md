@@ -372,14 +372,61 @@ python manage.py seed_catalog        # Upload ảnh mẫu lên Cloudinary
 
 Ảnh tĩnh UI (banner, logo trong `frontend/src/assets/`) vẫn bundle cùng frontend — không qua Cloudinary.
 
+### Deploy trên Render — đưa data lên production
+
+Render **chỉ tự chạy `migrate`** khi start container. Dữ liệu sản phẩm / admin **phải seed thủ công** qua Shell.
+
+**Bước 1 — Environment (Dashboard → `pitchzone-api` → Environment):**
+
+| Biến | Bắt buộc |
+|------|----------|
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Có — ảnh SP |
+| `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET` | Nếu dùng VNPay |
+| `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` | Nếu gửi email |
+
+**Bước 2 — Shell (Dashboard → `pitchzone-api` → Shell):**
+
+```bash
+# Kiểm tra Cloudinary
+python manage.py check_cloudinary
+
+# Seed toàn bộ demo: sản phẩm + deal + voucher
+python manage.py seed_all
+
+# Tạo admin (đặt DJANGO_SUPERUSER_PASSWORD trong Environment trước)
+python manage.py create_admin
+
+# Hoặc tương tác
+python manage.py createsuperuser
+```
+
+**Bước 3 — Đăng nhập:**
+
+- Cửa hàng: `https://pitchzone-web.onrender.com`
+- Admin: `https://pitchzone-web.onrender.com/admin` (tài khoản `is_staff`)
+
+**Cách 2 — Copy DB từ máy local (nếu đã có data thật):**
+
+```bash
+# Máy local — export PostgreSQL
+pg_dump -h localhost -U pickzone_user -d pickzone_db -F c -f pitchzone.dump
+
+# Render — lấy External Database URL (Dashboard → pitchzone-db → Connect)
+pg_restore --clean --no-owner -d "<RENDER_DATABASE_URL>" pitchzone.dump
+```
+
+> Sau `pg_restore`, ảnh vẫn cần Cloudinary — URL `/media/` local sẽ không hoạt động trên Render. Chạy `seed_all` hoặc upload lại ảnh.
+
 ---
 
 ## Seed dữ liệu mẫu
 
 ```bash
 cd backend
-python manage.py seed_catalog      # Danh mục, brand, sản phẩm, ảnh, biến thể
-python manage.py seed_promotions    # Deal sốc mẫu (tùy chọn)
+python manage.py seed_all           # Catalog + deal + voucher (khuyến nghị)
+python manage.py seed_catalog       # Chỉ danh mục, brand, sản phẩm, ảnh
+python manage.py seed_promotions     # Chỉ deal sốc + voucher
+python manage.py create_admin       # Tạo admin từ DJANGO_SUPERUSER_*
 ```
 
 Lệnh `seed_catalog` tạo giày Nike/Adidas/Puma, quần áo, phụ kiện kèm ảnh sinh tự động.
