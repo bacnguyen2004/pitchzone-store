@@ -24,8 +24,13 @@ function ForgotPasswordPage() {
     try {
       const data = await forgotPassword(email);
       setMessage(data.detail);
-    } catch {
-      setError("Không gửi được yêu cầu. Vui lòng thử lại.");
+    } catch (err) {
+      const data = err?.response?.data;
+      const text =
+        data?.email?.[0] ||
+        (typeof data?.detail === "string" ? data.detail : null) ||
+        "Không gửi được yêu cầu. Vui lòng thử lại.";
+      setError(text);
     } finally {
       setIsSubmitting(false);
     }

@@ -5,6 +5,7 @@ import {
   getProvinces,
   getWards,
 } from "../api/address";
+import { getAddressApiBase } from "../config/env";
 import { MapPinIcon } from "./StoreIcons";
 
 const EMPTY_PARTS = {
@@ -236,7 +237,7 @@ function AddressSelector({ onChange, onValidityChange }) {
       <p className="text-xs text-slate-400">
         Dữ liệu địa giới hành chính (v2) từ{" "}
         <a
-          href="https://provinces.open-api.vn/api/v2/redoc"
+          href={`${getAddressApiBase()}/redoc`}
           target="_blank"
           rel="noreferrer"
           className="text-primary hover:text-primary-hover"

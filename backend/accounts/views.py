@@ -1,15 +1,14 @@
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
-from django.core.mail import send_mail
-from django.utils.encoding import force_bytes, force_str
-from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.utils.encoding import force_str
+from django.utils.http import urlsafe_base64_decode
 from config.pagination import AdminResultsSetPagination
 from rest_framework import filters, generics, mixins, permissions, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Address, CustomerProfile
+from .services.email import send_password_reset_email
 from .permissions import IsAdminUser
 from .serializers import (
     AddressSerializer,
@@ -40,34 +39,21 @@ class ForgotPasswordView(APIView):
         serializer = ForgotPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data["email"]
-        user = User.objects.filter(email__iexact=email).first()
+        user = User.objects.get(email__iexact=email)
 
-        if user:
-            uid = urlsafe_base64_encode(force_bytes(user.pk))
-            token = default_token_generator.make_token(user)
-            reset_url = (
-                f"{settings.FRONTEND_URL.rstrip('/')}/reset-password"
-                f"?uid={uid}&token={token}"
-            )
-            send_mail(
-                subject="[PitchZone] Đặt lại mật khẩu",
-                message=(
-                    f"Xin chào {user.username},\n\n"
-                    f"Nhấn link sau để đặt lại mật khẩu:\n{reset_url}\n\n"
-                    "Nếu bạn không yêu cầu, hãy bỏ qua email này."
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                fail_silently=True,
+        if not send_password_reset_email(user):
+            return Response(
+                {
+                    "detail": (
+                        "Không gửi được email. "
+                        "Kiểm tra cấu hình SMTP hoặc thử lại sau."
+                    )
+                },
+                status=503,
             )
 
         return Response(
-            {
-                "detail": (
-                    "Nếu email tồn tại trong hệ thống, "
-                    "chúng tôi đã gửi hướng dẫn đặt lại mật khẩu."
-                )
-            }
+            {"detail": "Đã gửi link đặt lại mật khẩu đến email của bạn."}
         )
 
 
@@ -184,7 +170,15 @@ class AdminUserViewSet(
     ordering = ["-date_joined"]
 
     def get_queryset(self):
-        return User.objects.select_related("customer_profile").order_by("-date_joined")
+        queryset = User.objects.select_related("customer_profile").order_by(
+            "-date_joined"
+        )
+        is_staff = self.request.query_params.get("is_staff")
+        if is_staff is not None:
+            queryset = queryset.filter(
+                is_staff=str(is_staff).lower() in {"1", "true", "yes"}
+            )
+        return queryset
 
     def get_serializer_class(self):
         if self.action in {"update", "partial_update"}:

@@ -1,9 +1,18 @@
 import api from "./axios";
 
-export async function getShippingQuote({ subtotal, city = "" }) {
+export async function getShippingQuote({
+  subtotal,
+  city = "",
+  item_count = 1,
+}) {
   const response = await api.get("/orders/shipping-quote/", {
-    params: { subtotal, city },
+    params: { subtotal, city, item_count },
   });
+  return response.data;
+}
+
+export async function verifyVNPayReturn(params) {
+  const response = await api.get("/payments/vnpay/verify/", { params });
   return response.data;
 }
 

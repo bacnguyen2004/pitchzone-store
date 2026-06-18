@@ -46,7 +46,7 @@ export const faqItems = [
     popular: true,
     question: "Website hỗ trợ những hình thức thanh toán nào?",
     answer:
-      "Hiện hỗ trợ thanh toán khi nhận hàng (COD) và chuyển khoản ngân hàng. Sau khi đặt hàng, bạn nhận email xác nhận kèm hướng dẫn thanh toán (nếu chọn chuyển khoản).",
+      "Hiện hỗ trợ thanh toán khi nhận hàng (COD) và VNPay (thẻ ATM, Visa, Mastercard, QR). Sau khi đặt hàng, bạn nhận email xác nhận.",
   },
   {
     id: "track-order",

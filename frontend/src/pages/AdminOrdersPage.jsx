@@ -1,27 +1,28 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { getAdminOrders, updateAdminOrderStatus } from "../api/admin";
+import {
+  getAdminDashboard,
+  getAdminOrders,
+  updateAdminOrderStatus,
+} from "../api/admin";
 import AdminAlert from "../components/admin/AdminAlert";
 import AdminLoading from "../components/admin/AdminLoading";
+import AdminOrderCard from "../components/admin/AdminOrderCard";
 import AdminOrderDetail from "../components/admin/AdminOrderDetail";
 import AdminPageHeader from "../components/admin/AdminPageHeader";
 import AdminPagination from "../components/admin/AdminPagination";
-import AdminStatusBadge from "../components/admin/AdminStatusBadge";
-import AdminTable, {
-  AdminTableActions,
-  AdminTableEmpty,
-} from "../components/admin/AdminTable";
-import AdminToolbar from "../components/admin/AdminToolbar";
-import { ResetIcon } from "../components/StoreIcons";
+import { PackageIcon, ResetIcon, SearchIcon } from "../components/StoreIcons";
 import { adminOrderStatusOptions } from "../config/adminContent";
 import { useAdminList } from "../hooks/useAdminList";
 import { getApiErrorMessage } from "../utils/adminErrors";
-import { formatCurrency } from "../utils/format";
 
 function AdminOrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [actionError, setActionError] = useState("");
+  const [busyOrderId, setBusyOrderId] = useState(null);
+  const [statusCounts, setStatusCounts] = useState({});
+  const [showMobileDetail, setShowMobileDetail] = useState(false);
 
   const extraParams = useMemo(
     () => (statusFilter ? { status: statusFilter } : {}),
@@ -46,36 +47,86 @@ function AdminOrdersPage() {
     extraParams,
   });
 
-  async function handleStatusChange(orderId, nextStatus) {
-    setActionError("");
-
+  async function refreshStatusCounts() {
     try {
-      await updateAdminOrderStatus(orderId, nextStatus);
-      await load();
-      setSelectedOrder((current) =>
-        current?.id === orderId ? { ...current, status: nextStatus } : current,
-      );
-    } catch (err) {
-      setActionError(getApiErrorMessage(err, "Không thể cập nhật trạng thái."));
+      const data = await getAdminDashboard();
+      const map = {};
+      (data.status_counts || []).forEach((item) => {
+        map[item.status] = item.count;
+      });
+      setStatusCounts(map);
+    } catch {
+      // ignore
     }
   }
 
-  function handleStatusFilterChange(value) {
-    setStatusFilter(value);
+  useEffect(() => {
+    refreshStatusCounts();
+  }, [status]);
+
+  useEffect(() => {
+    if (status !== "success" || orders.length === 0) {
+      return;
+    }
+
+    setSelectedOrder((current) => {
+      if (current && orders.some((order) => order.id === current.id)) {
+        return orders.find((order) => order.id === current.id) || current;
+      }
+      return orders[0];
+    });
+  }, [orders, status]);
+
+  const totalOrders = useMemo(
+    () =>
+      Object.values(statusCounts).reduce(
+        (sum, value) => sum + Number(value || 0),
+        0,
+      ),
+    [statusCounts],
+  );
+
+  function handleSelectOrder(order) {
+    setSelectedOrder(order);
+    setShowMobileDetail(true);
+  }
+
+  function handleCloseMobileDetail() {
+    setShowMobileDetail(false);
+  }
+
+  async function handleStatusChange(orderId, nextStatus) {
+    setActionError("");
+    setBusyOrderId(orderId);
+
+    try {
+      const updatedOrder = await updateAdminOrderStatus(orderId, nextStatus);
+      await load();
+      await refreshStatusCounts();
+      setSelectedOrder((current) =>
+        current?.id === orderId ? updatedOrder : current,
+      );
+    } catch (err) {
+      setActionError(getApiErrorMessage(err, "Không thể cập nhật trạng thái."));
+    } finally {
+      setBusyOrderId(null);
+    }
   }
 
   return (
-    <>
+    <div className="admin-orders-page">
       <AdminPageHeader
-        title="Quản lý đơn hàng"
-        description="Theo dõi đơn, xem chi tiết sản phẩm và cập nhật trạng thái giao hàng."
+        title="Đơn hàng"
+        description="Quản lý đơn, theo dõi giao hàng và xử lý thanh toán."
         action={
           <button
             type="button"
             onClick={load}
             className="admin-btn admin-btn-secondary"
           >
-            <ResetIcon className={`h-4 w-4${status === "loading" ? " animate-spin" : ""}`} />
+            <ResetIcon
+              className={`h-4 w-4${status === "loading" ? " animate-spin" : ""}`}
+            />
             Làm mới
           </button>
         }
@@ -85,142 +136,120 @@ function AdminOrdersPage() {
         <AdminAlert tone="error">{error || actionError}</AdminAlert>
       )}
 
-      <AdminToolbar
-        search={search}
-        onSearchChange={handleSearchChange}
-        searchPlaceholder="Tìm theo mã, tên, SĐT, tài khoản..."
-        countLabel={`${count} đơn hàng`}
-        onRefresh={load}
-        isRefreshing={status === "loading"}
-        filter={
-          <select
-            value={statusFilter}
-            onChange={(event) => handleStatusFilterChange(event.target.value)}
-            className="admin-select max-w-xs"
+      <section className="admin-orders-metrics">
+        <button
+          type="button"
+          className={`admin-orders-metric${statusFilter === "" ? " is-active" : ""}`}
+          onClick={() => setStatusFilter("")}
+        >
+          <span className="admin-orders-metric-value">{totalOrders}</span>
+          <span className="admin-orders-metric-label">Tất cả</span>
+        </button>
+        {adminOrderStatusOptions.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            className={`admin-orders-metric is-${option.value}${
+              statusFilter === option.value ? " is-active" : ""
+            }`}
+            onClick={() => setStatusFilter(option.value)}
           >
-            <option value="">Tất cả trạng thái</option>
-            {adminOrderStatusOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        }
-      />
+            <span className="admin-orders-metric-value">
+              {statusCounts[option.value] || 0}
+            </span>
+            <span className="admin-orders-metric-label">{option.label}</span>
+          </button>
+        ))}
+      </section>
 
-      {status === "loading" && <AdminLoading rows={6} columns={5} />}
+      <div className="admin-orders-workspace">
+        <section className="admin-orders-inbox admin-panel">
+          <header className="admin-orders-inbox-head">
+            <div className="admin-orders-inbox-title">
+              <PackageIcon className="h-5 w-5 text-emerald-600" />
+              <div>
+                <h2>Danh sách đơn</h2>
+                <p>{count} đơn phù hợp</p>
+              </div>
+            </div>
+            <div className="admin-search-field admin-orders-search">
+              <SearchIcon className="admin-search-icon h-4 w-4" />
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => handleSearchChange(event.target.value)}
+                placeholder="Mã đơn, tên, SĐT, email..."
+                className="admin-input admin-orders-search-input"
+              />
+            </div>
+          </header>
 
-      {status === "success" && (
-        <>
-          <AdminTable>
-            <thead>
-              <tr>
-                <th className="is-id">Mã</th>
-                <th>Khách hàng</th>
-                <th>Tài khoản</th>
-                <th className="is-numeric">SP</th>
-                <th className="is-money">Tổng</th>
-                <th className="is-status">Trạng thái</th>
-                <th className="is-date">Ngày</th>
-                <th className="is-actions" />
-              </tr>
-            </thead>
-            <tbody>
-              {orders.length === 0 && (
-                <AdminTableEmpty
-                  colSpan={8}
-                  message="Không có đơn hàng phù hợp."
-                />
-              )}
-              {orders.map((order) => {
-                const itemCount = (order.items || []).reduce(
-                  (total, item) => total + item.quantity,
-                  0,
-                );
+          <div className="admin-orders-inbox-body">
+            {status === "loading" && <AdminLoading rows={5} variant="list" />}
 
-                return (
-                  <tr key={order.id}>
-                    <td className="is-id">
-                      <span className="admin-table-id">#{order.id}</span>
-                    </td>
-                    <td>
-                      <div className="admin-table-cell-stack">
-                        <p className="admin-table-title">{order.full_name}</p>
-                        <p className="admin-table-sub">{order.phone}</p>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="admin-table-cell-stack">
-                        <p className="admin-table-title">
-                          {order.user?.username || "—"}
-                        </p>
-                        <p className="admin-table-sub">
-                          {order.user?.email || ""}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="is-numeric">
-                      <span className="admin-table-chip">{itemCount} SP</span>
-                    </td>
-                    <td className="is-money">
-                      <div className="admin-table-cell-stack">
-                        <span>{formatCurrency(order.total_price)}</span>
-                        {Number(order.discount_amount) > 0 && (
-                          <p className="admin-table-sub text-emerald-700">
-                            {order.voucher_code} · -
-                            {formatCurrency(order.discount_amount)}
-                          </p>
-                        )}
-                      </div>
-                    </td>
-                    <td className="is-status">
-                      <div className="admin-table-status">
-                        <AdminStatusBadge status={order.status} />
-                        <select
-                          value={order.status}
-                          onChange={(event) =>
-                            handleStatusChange(order.id, event.target.value)
-                          }
-                          className="admin-select"
-                        >
-                          {adminOrderStatusOptions.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </td>
-                    <td className="is-date is-muted">
-                      {new Date(order.created_at).toLocaleDateString("vi-VN")}
-                    </td>
-                    <td className="is-actions">
-                      <AdminTableActions
-                        onView={() => setSelectedOrder(order)}
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </AdminTable>
+            {status === "success" && orders.length === 0 && (
+              <div className="admin-orders-empty">
+                <PackageIcon className="h-10 w-10 text-slate-300" />
+                <p>Không có đơn hàng phù hợp.</p>
+              </div>
+            )}
 
-          <AdminPagination
-            page={page}
-            totalPages={totalPages}
-            count={count}
-            pageSize={pageSize}
-            onPageChange={handlePageChange}
-            onPageSizeChange={handlePageSizeChange}
+            {status === "success" && orders.length > 0 && (
+              <div className="admin-orders-list">
+                {orders.map((order) => (
+                  <AdminOrderCard
+                    key={order.id}
+                    order={order}
+                    isSelected={selectedOrder?.id === order.id}
+                    onSelect={handleSelectOrder}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {status === "success" && count > 0 && (
+            <footer className="admin-orders-inbox-foot">
+              <AdminPagination
+                page={page}
+                totalPages={totalPages}
+                count={count}
+                pageSize={pageSize}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
+              />
+            </footer>
+          )}
+        </section>
+
+        <aside className="admin-orders-detail admin-panel hidden lg:flex">
+          <AdminOrderDetail
+            order={selectedOrder}
+            onStatusChange={handleStatusChange}
+            isUpdating={busyOrderId === selectedOrder?.id}
           />
-        </>
-      )}
+        </aside>
+      </div>
 
-      <AdminOrderDetail
-        order={selectedOrder}
-        onClose={() => setSelectedOrder(null)}
-      />
-    </>
+      {showMobileDetail && selectedOrder && (
+        <div className="admin-orders-mobile-detail lg:hidden">
+          <div
+            className="admin-orders-mobile-backdrop"
+            onClick={handleCloseMobileDetail}
+            aria-hidden
+          />
+          <div className="admin-orders-mobile-panel admin-panel">
+            <AdminOrderDetail
+              order={selectedOrder}
+              onClose={handleCloseMobileDetail}
+              onStatusChange={handleStatusChange}
+              isUpdating={busyOrderId === selectedOrder?.id}
+              isMobile
+            />
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

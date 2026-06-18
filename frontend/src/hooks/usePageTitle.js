@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 
-const SITE_NAME = "PitchZone";
+import { getAppName } from "../config/env";
+
+const SITE_NAME = getAppName();
 
 export function usePageTitle(title) {
   useEffect(() => {

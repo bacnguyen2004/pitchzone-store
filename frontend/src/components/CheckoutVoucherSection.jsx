@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { validateVoucher } from "../api/vouchers";
+import { getApiErrorMessage } from "../utils/apiErrors";
 import { formatCurrency } from "../utils/format";
 
 function CheckoutVoucherSection({
@@ -14,12 +15,16 @@ function CheckoutVoucherSection({
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
 
-  async function handleApply(event) {
-    event.preventDefault();
-
+  async function handleApply() {
     const trimmed = code.trim();
     if (!trimmed) {
       setError("Nhập mã voucher.");
+      return;
+    }
+
+    if (!subtotal || subtotal <= 0) {
+      setError("Giỏ hàng trống hoặc đang tải — không thể áp mã.");
+      setStatus("error");
       return;
     }
 
@@ -29,21 +34,24 @@ function CheckoutVoucherSection({
     try {
       const result = await validateVoucher({
         code: trimmed,
-        subtotal,
+        subtotal: Number(subtotal).toFixed(2),
       });
+      const discountAmount = Number(result.discount_amount);
+
+      if (!result.code || Number.isNaN(discountAmount) || discountAmount <= 0) {
+        throw new Error("invalid voucher response");
+      }
+
       onApply({
         code: result.code,
-        discountAmount: Number(result.discount_amount),
+        discountAmount,
         description: result.description,
       });
       setCode(result.code);
       setStatus("success");
     } catch (err) {
-      const voucherError = err?.response?.data?.voucher_code;
       setError(
-        typeof voucherError === "string"
-          ? voucherError
-          : "Mã voucher không hợp lệ.",
+        getApiErrorMessage(err, "Mã voucher không hợp lệ hoặc không áp dụng được."),
       );
       setStatus("error");
       onClear();
@@ -72,24 +80,31 @@ function CheckoutVoucherSection({
         )}
       </div>
 
-      <form onSubmit={handleApply} className="checkout-voucher-form">
+      <div className="checkout-voucher-form">
         <input
           type="text"
           name="voucher_code"
           value={code}
           onChange={(event) => setCode(event.target.value.toUpperCase())}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              handleApply();
+            }
+          }}
           placeholder="Nhập mã — VD: PITCH10"
           className="checkout-voucher-input"
           disabled={status === "loading"}
         />
         <button
-          type="submit"
-          disabled={status === "loading"}
+          type="button"
+          onClick={handleApply}
+          disabled={status === "loading" || !subtotal || subtotal <= 0}
           className="btn-secondary checkout-voucher-apply"
         >
           {status === "loading" ? "Đang kiểm tra..." : "Áp dụng"}
         </button>
-      </form>
+      </div>
 
       {error && (
         <p role="alert" className="checkout-voucher-error">

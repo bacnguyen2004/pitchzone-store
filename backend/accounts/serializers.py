@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+
 from rest_framework import serializers
 
 from .models import Address, CustomerProfile
@@ -206,10 +207,21 @@ class ForgotPasswordSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
     def validate_email(self, value):
-        return value.strip().lower()
+        email = value.strip().lower()
+        if not User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError("Email không tồn tại trong hệ thống.")
+        return email
 
 
 class ResetPasswordSerializer(serializers.Serializer):
     uid = serializers.CharField()
     token = serializers.CharField()
     password = serializers.CharField(write_only=True, min_length=8)
+    password_confirm = serializers.CharField(write_only=True, min_length=8)
+
+    def validate(self, attrs):
+        if attrs["password"] != attrs["password_confirm"]:
+            raise serializers.ValidationError(
+                {"password_confirm": "Mật khẩu xác nhận không khớp."}
+            )
+        return attrs

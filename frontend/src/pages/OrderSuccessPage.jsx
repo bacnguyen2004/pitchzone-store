@@ -6,12 +6,8 @@ import { getOrder } from "../api/orders";
 import { useAuth } from "../contexts/AuthContext";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { formatCurrency } from "../utils/format";
+import { paymentMethodLabels } from "../utils/orderStatus";
 import { HomeIcon } from "../components/StoreIcons";
-
-const PAYMENT_LABELS = {
-  cod: "Thanh toán khi nhận hàng",
-  transfer: "Chuyển khoản ngân hàng",
-};
 
 function OrderSuccessPage() {
   const { id } = useParams();
@@ -104,20 +100,15 @@ function OrderSuccessPage() {
             </div>
             <div>
               <dt>Hình thức</dt>
-              <dd>{PAYMENT_LABELS[order.payment_method] || order.payment_method}</dd>
+              <dd>
+                {paymentMethodLabels[order.payment_method] || order.payment_method}
+              </dd>
             </div>
             <div>
               <dt>Giao tới</dt>
               <dd>{order.address}</dd>
             </div>
           </dl>
-
-          {order.payment_method === "transfer" && (
-            <p className="order-success-hint">
-              Vui lòng chuyển khoản theo hướng dẫn trong email xác nhận. Đơn sẽ
-              được xử lý sau khi nhận thanh toán.
-            </p>
-          )}
 
           <div className="order-success-actions">
             <Link to={`/orders/${order.id}`} className="btn-primary rounded-xl px-6 py-3">

@@ -7,7 +7,10 @@ import { CartIcon, CheckIcon } from "../components/AuthIcons";
 import { deleteCartItem, getCart, updateCartItem } from "../api/cart";
 import { useAuth } from "../contexts/AuthContext";
 import { formatCurrency, getMainImage, resolveMediaUrl } from "../utils/format";
+import { FREE_SHIPPING_THRESHOLD } from "../config/shipping";
 import { buildProductsUrl } from "../utils/productFilters";
+import EmptyState from "../components/EmptyState";
+import { ErrorPanel, LoadingPanel } from "../components/PageStatus";
 import {
   ChevronRightIcon,
   EmptyBoxIcon,
@@ -18,8 +21,6 @@ import {
   TrashIcon,
   TruckIcon,
 } from "../components/StoreIcons";
-
-const FREE_SHIPPING_THRESHOLD = 2_000_000;
 
 const CART_STEPS = [
   { id: "cart", label: "Giỏ hàng" },
@@ -386,7 +387,7 @@ function CartPage() {
     return (
       <main className="cart-page">
         <div className="page-container py-10">
-          <p className="text-slate-500">Đang kiểm tra đăng nhập...</p>
+          <LoadingPanel message="Đang kiểm tra đăng nhập..." />
         </div>
       </main>
     );
@@ -417,21 +418,16 @@ function CartPage() {
         </section>
 
         <div className="page-container py-12">
-          <div className="cart-guest-panel">
-            <span className="cart-guest-icon">
-              <CartIcon className="h-8 w-8" />
-            </span>
-            <h2>Chưa đăng nhập</h2>
-            <p>Đăng nhập để đồng bộ giỏ hàng trên mọi thiết bị.</p>
-            <div className="cart-guest-actions">
-              <Link to="/login" className="btn-primary rounded-xl px-7 py-3">
-                Đăng nhập
-              </Link>
-              <Link to="/register" className="btn-secondary rounded-xl px-7 py-3">
-                Đăng ký
-              </Link>
-            </div>
-          </div>
+          <EmptyState
+            icon={CartIcon}
+            title="Chưa đăng nhập"
+            description="Đăng nhập để đồng bộ giỏ hàng trên mọi thiết bị."
+            actionTo="/login"
+            actionLabel="Đăng nhập"
+            secondaryActionTo="/register"
+            secondaryActionLabel="Đăng ký"
+            tone="cart"
+          />
         </div>
       </main>
     );
@@ -474,24 +470,26 @@ function CartPage() {
           <CartSteps />
 
           {error && (
-            <p role="alert" className="cart-error">
-              {error}
-            </p>
+            <ErrorPanel
+              className="cart-error"
+              message={error}
+              onRetry={() => refreshCart()}
+            />
           )}
 
           {isLoading && <CartSkeleton />}
 
           {status === "success" && items.length === 0 && (
-            <section className="cart-empty">
-              <span className="cart-empty-icon">
-                <EmptyBoxIcon className="h-8 w-8" />
-              </span>
-              <h2>Giỏ hàng trống</h2>
-              <p>Thêm giày, áo đấu hoặc phụ kiện để bắt đầu đặt hàng.</p>
-              <Link to={buildProductsUrl()} className="btn-primary mt-6 rounded-xl">
-                Xem sản phẩm
-              </Link>
-            </section>
+            <EmptyState
+              icon={EmptyBoxIcon}
+              title="Giỏ hàng trống"
+              description="Thêm giày, áo đấu hoặc phụ kiện để bắt đầu đặt hàng."
+              actionTo={buildProductsUrl()}
+              actionLabel="Khám phá sản phẩm"
+              secondaryActionTo="/categories"
+              secondaryActionLabel="Xem danh mục"
+              tone="cart"
+            />
           )}
 
           {items.length > 0 && cart && (

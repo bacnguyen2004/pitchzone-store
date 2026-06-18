@@ -46,54 +46,81 @@ class Voucher(models.Model):
         return self.code
 
 
-class Order(models.Model):
-    STATUS_CHOICES = [
-        ("pending", "Pending"),
-        ("processing", "Processing"),
-        ("shipping", "Shipping"),
-        ("completed", "Completed"),
-        ("cancelled", "Cancelled"),
-    ]
+class Order(models.Model):
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("processing", "Processing"),
+        ("shipping", "Shipping"),
+        ("completed", "Completed"),
+        ("cancelled", "Cancelled"),
+    ]
     PAYMENT_COD = "cod"
-    PAYMENT_TRANSFER = "transfer"
+    PAYMENT_VNPAY = "vnpay"
     PAYMENT_METHOD_CHOICES = [
         (PAYMENT_COD, "Thanh toán khi nhận hàng"),
-        (PAYMENT_TRANSFER, "Chuyển khoản ngân hàng"),
+        (PAYMENT_VNPAY, "VNPay"),
     ]
 
+    PAYMENT_UNPAID = "unpaid"
+    PAYMENT_PENDING = "pending"
+    PAYMENT_PAID = "paid"
+    PAYMENT_FAILED = "failed"
+    PAYMENT_STATUS_CHOICES = [
+        (PAYMENT_UNPAID, "Chưa thanh toán"),
+        (PAYMENT_PENDING, "Chờ xác nhận"),
+        (PAYMENT_PAID, "Đã thanh toán"),
+        (PAYMENT_FAILED, "Thanh toán thất bại"),
+    ]
+
+    CARRIER_GHN = "ghn"
+
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="orders"
-    )
-    full_name = models.CharField(max_length=150)
-    phone = models.CharField(max_length=20)
-    address = models.CharField(max_length=255)
-    city = models.CharField(max_length=100, blank=True)
-    note = models.TextField(blank=True)
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="orders"
+    )
+    full_name = models.CharField(max_length=150)
+    phone = models.CharField(max_length=20)
+    address = models.CharField(max_length=255)
+    city = models.CharField(max_length=100, blank=True)
+    note = models.TextField(blank=True)
     payment_method = models.CharField(
         max_length=20,
         choices=PAYMENT_METHOD_CHOICES,
         default=PAYMENT_COD,
     )
+    payment_status = models.CharField(
+        max_length=20,
+        choices=PAYMENT_STATUS_CHOICES,
+        default=PAYMENT_PENDING,
+    )
+    vnpay_txn_ref = models.CharField(max_length=64, blank=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    carrier = models.CharField(max_length=20, blank=True)
+    tracking_code = models.CharField(max_length=64, blank=True)
+    carrier_order_code = models.CharField(max_length=64, blank=True)
+    carrier_status = models.CharField(max_length=64, blank=True)
+    district_id = models.PositiveIntegerField(null=True, blank=True)
+    ward_code = models.CharField(max_length=32, blank=True)
+    shipping_weight = models.PositiveIntegerField(default=0)
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     shipping_fee = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     voucher_code = models.CharField(max_length=40, blank=True)
     total_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"Order #{self.id} - {self.user.username}"
-
-
+
+    def __str__(self):
+        return f"Order #{self.id} - {self.user.username}"
+
+
 class OrderItem(models.Model):
-    order = models.ForeignKey(
-        Order,
-        on_delete=models.CASCADE,
-        related_name="items"
-    )
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name="items"
+    )
     product = models.ForeignKey(
         Product,
         on_delete=models.PROTECT,

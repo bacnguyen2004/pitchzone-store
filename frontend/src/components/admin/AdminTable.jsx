@@ -1,4 +1,12 @@
-import { PencilIcon, TrashIcon, ViewIcon } from "../StoreIcons";
+import {
+  GridIcon,
+  PackageIcon,
+  PencilIcon,
+  TrashIcon,
+  ViewIcon,
+} from "../StoreIcons";
+
+import AdminEmptyState from "./AdminEmptyState";
 
 function AdminTable({ children, className = "" }) {
   return (
@@ -10,13 +18,21 @@ function AdminTable({ children, className = "" }) {
   );
 }
 
-export function AdminTableEmpty({ colSpan, message = "Không có dữ liệu phù hợp." }) {
+export function AdminTableEmpty({
+  colSpan,
+  message = "Không có dữ liệu phù hợp.",
+  title,
+  icon: Icon = PackageIcon,
+}) {
   return (
     <tr className="admin-table-empty-row">
       <td colSpan={colSpan}>
-        <div className="admin-table-empty">
-          <p>{message}</p>
-        </div>
+        <AdminEmptyState
+          compact
+          icon={Icon}
+          title={title || message}
+          description={title ? message : undefined}
+        />
       </td>
     </tr>
   );
@@ -26,13 +42,26 @@ export function AdminTableActions({
   onEdit,
   onDelete,
   onView,
+  onVariants,
   editLabel = "Sửa",
   deleteLabel = "Xóa",
   viewLabel = "Xem chi tiết",
+  variantsLabel = "Biến thể",
   children,
 }) {
   return (
     <div className="admin-table-actions">
+      {onVariants && (
+        <button
+          type="button"
+          onClick={onVariants}
+          className="admin-table-icon-btn is-variants"
+          aria-label={variantsLabel}
+          title={variantsLabel}
+        >
+          <GridIcon className="h-4 w-4" />
+        </button>
+      )}
       {onView && (
         <button
           type="button"

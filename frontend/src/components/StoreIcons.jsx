@@ -257,6 +257,34 @@ export function ResetIcon({ className = "h-4 w-4" }) {
   );
 }
 
+export function RefreshIcon({ className = "h-4 w-4" }) {
+  return (
+    <IconBase className={className}>
+      {(sw) => (
+        <>
+          {strokePath("M4 12a8 8 0 0113.5-5.5", sw)}
+          {strokePath("M20 4v5h-5", sw)}
+          {strokePath("M20 12a8 8 0 01-13.5 5.5", sw)}
+          {strokePath("M4 20v-5h5", sw)}
+        </>
+      )}
+    </IconBase>
+  );
+}
+
+export function AlertCircleIcon({ className = "h-5 w-5" }) {
+  return (
+    <IconBase className={className}>
+      {(sw) => (
+        <>
+          <circle cx="12" cy="12" r="9" strokeWidth={sw} />
+          {strokePath("M12 8v4M12 16h.01", sw)}
+        </>
+      )}
+    </IconBase>
+  );
+}
+
 export function EmptyBoxIcon({ className = "h-10 w-10" }) {
   return (
     <IconBase className={className}>

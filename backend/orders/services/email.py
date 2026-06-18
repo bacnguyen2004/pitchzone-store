@@ -39,6 +39,17 @@ def send_order_confirmation(order) -> None:
         [
             f"Tổng thanh toán: {int(order.total_price):,}đ",
             f"Hình thức: {order.get_payment_method_display()}",
+        ]
+    )
+
+    if order.payment_method == order.PAYMENT_VNPAY:
+        if order.payment_status == order.PAYMENT_PAID:
+            lines.append("Thanh toán VNPay: Đã xác nhận.")
+        else:
+            lines.append("Thanh toán VNPay: Chưa hoàn tất.")
+
+    lines.extend(
+        [
             "",
             f"Giao tới: {order.address}",
             f"SĐT: {order.phone}",

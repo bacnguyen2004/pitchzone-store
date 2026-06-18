@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import authVisual from "../assets/auth-login.jpg";
@@ -23,8 +23,22 @@ function LoginPage() {
   const [alert, setAlert] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (!location.state?.reset) {
+      return;
+    }
+
+    setAlert({
+      title: "Đặt lại mật khẩu thành công",
+      messages: ["Bạn có thể đăng nhập bằng mật khẩu mới."],
+      tone: "success",
+    });
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: {} });
+  }, [location.pathname, location.search, location.state, navigate]);
+
   if (isAuthenticated) {
-    return <Navigate replace to="/" />;
+    const safeNext = nextPath.startsWith("/") ? nextPath : "/";
+    return <Navigate replace to={safeNext} />;
   }
 
   function handleChange(event) {
@@ -91,6 +105,7 @@ function LoginPage() {
           <AuthAlert
             title={alert.title}
             messages={alert.messages}
+            tone={alert.tone}
             onDismiss={() => setAlert(null)}
           />
         )}

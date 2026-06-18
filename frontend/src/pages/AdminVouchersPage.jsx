@@ -8,14 +8,18 @@ import {
   updateAdminVoucher,
 } from "../api/admin";
 import AdminAlert from "../components/admin/AdminAlert";
+import AdminCreatePanel from "../components/admin/AdminCreatePanel";
+import AdminDataSection from "../components/admin/AdminDataSection";
+import AdminEmptyState from "../components/admin/AdminEmptyState";
 import AdminLoading from "../components/admin/AdminLoading";
 import AdminPageHeader from "../components/admin/AdminPageHeader";
-import AdminStatusBadge from "../components/admin/AdminStatusBadge";
 import AdminToolbar from "../components/admin/AdminToolbar";
+import AdminVoucherCard from "../components/admin/AdminVoucherCard";
+import AdminVoucherFields from "../components/admin/AdminVoucherFields";
+import { PlusIcon, TagIcon } from "../components/StoreIcons";
 import { getCampaignStatus } from "../utils/adminStatus";
 import { getApiErrorMessage } from "../utils/adminErrors";
 import { fromDatetimeLocal, toDatetimeLocal } from "../utils/datetime";
-import { formatCurrency } from "../utils/format";
 
 function defaultForm() {
   const starts = new Date();
@@ -67,14 +71,6 @@ function buildPayload(draft) {
   };
 }
 
-function formatOffer(voucher) {
-  if (voucher.discount_type === "fixed") {
-    return formatCurrency(voucher.discount_value);
-  }
-
-  return `${Number(voucher.discount_value)}%`;
-}
-
 function AdminVouchersPage() {
   const [vouchers, setVouchers] = useState([]);
   const [drafts, setDrafts] = useState({});
@@ -83,6 +79,8 @@ function AdminVouchersPage() {
   const [status, setStatus] = useState("loading");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [savingId, setSavingId] = useState(null);
+  const [isCreating, setIsCreating] = useState(false);
 
   async function loadVouchers() {
     setStatus("loading");
@@ -119,33 +117,42 @@ function AdminVouchersPage() {
     );
   }, [vouchers, search]);
 
-  function updateForm(event) {
-    const { name, value, type, checked } = event.target;
-    const nextValue =
-      type === "checkbox"
-        ? checked
-        : name === "code"
-          ? value.toUpperCase()
-          : value;
+  const statusCounts = useMemo(() => {
+    const counts = { running: 0, upcoming: 0, expired: 0, totalUses: 0 };
+    vouchers.forEach((voucher) => {
+      const campaignStatus = getCampaignStatus(voucher);
+      if (campaignStatus.tone === "active") {
+        counts.running += 1;
+      } else if (campaignStatus.tone === "pending") {
+        counts.upcoming += 1;
+      } else if (campaignStatus.tone === "cancelled") {
+        counts.expired += 1;
+      }
+      counts.totalUses += Number(voucher.used_count || 0);
+    });
+    return counts;
+  }, [vouchers]);
 
+  function updateFormField(field, value) {
     setForm((current) => ({
       ...current,
-      [name]: nextValue,
+      [field]: value,
     }));
   }
 
-  function updateDraft(voucherId, field, value) {
+  function updateDraftField(voucherId, field, value) {
     setDrafts((current) => ({
       ...current,
       [voucherId]: {
         ...current[voucherId],
-        [field]: field === "code" ? String(value).toUpperCase() : value,
+        [field]: value,
       },
     }));
   }
 
   async function createVoucher(event) {
     event.preventDefault();
+    setIsCreating(true);
     setMessage("");
     setError("");
 
@@ -156,10 +163,13 @@ function AdminVouchersPage() {
       await loadVouchers();
     } catch (err) {
       setError(getApiErrorMessage(err, "Không thể tạo voucher."));
+    } finally {
+      setIsCreating(false);
     }
   }
 
   async function saveVoucher(voucherId) {
+    setSavingId(voucherId);
     setMessage("");
     setError("");
 
@@ -169,6 +179,8 @@ function AdminVouchersPage() {
       await loadVouchers();
     } catch (err) {
       setError(getApiErrorMessage(err, "Không thể cập nhật voucher."));
+    } finally {
+      setSavingId(null);
     }
   }
 
@@ -190,290 +202,99 @@ function AdminVouchersPage() {
   }
 
   return (
-    <>
-      <AdminPageHeader
-        title="Voucher"
-        description="Tạo và quản lý mã giảm giá áp dụng khi thanh toán."
-      />
+    <div className="admin-vouchers-page">
+      <section className="admin-deals-top">
+        <AdminPageHeader
+          title="Voucher"
+          description="Tạo và quản lý mã giảm giá áp dụng khi thanh toán."
+        />
 
-      <section className="admin-panel mt-6">
-        <header className="admin-panel-head">
-          <h2>Thêm voucher</h2>
-        </header>
-        <form onSubmit={createVoucher} className="admin-panel-body">
-          <div className="admin-form-grid">
-            <input
-              name="code"
-              value={form.code}
-              onChange={updateForm}
-              placeholder="Mã — VD: PITCH10"
-              className="admin-input font-mono uppercase"
-              required
-            />
-            <input
-              name="description"
-              value={form.description}
-              onChange={updateForm}
-              placeholder="Mô tả hiển thị"
-              className="admin-input"
-            />
-            <select
-              name="discount_type"
-              value={form.discount_type}
-              onChange={updateForm}
-              className="admin-select"
-            >
-              <option value="percent">Giảm %</option>
-              <option value="fixed">Giảm cố định</option>
-            </select>
-            <input
-              name="discount_value"
-              type="number"
-              min="0"
-              value={form.discount_value}
-              onChange={updateForm}
-              className="admin-input"
-              required
-            />
-            <input
-              name="min_order_amount"
-              type="number"
-              min="0"
-              value={form.min_order_amount}
-              onChange={updateForm}
-              placeholder="Đơn tối thiểu"
-              className="admin-input"
-            />
-            <input
-              name="max_discount_amount"
-              type="number"
-              min="0"
-              value={form.max_discount_amount}
-              onChange={updateForm}
-              placeholder="Giảm tối đa (%)"
-              className="admin-input"
-            />
-            <input
-              name="starts_at"
-              type="datetime-local"
-              value={form.starts_at}
-              onChange={updateForm}
-              className="admin-input"
-              required
-            />
-            <input
-              name="ends_at"
-              type="datetime-local"
-              value={form.ends_at}
-              onChange={updateForm}
-              className="admin-input"
-              required
-            />
-            <input
-              name="usage_limit"
-              type="number"
-              min="1"
-              value={form.usage_limit}
-              onChange={updateForm}
-              placeholder="Giới hạn lượt dùng"
-              className="admin-input"
-            />
-            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-              <input
-                name="is_active"
-                type="checkbox"
-                checked={form.is_active}
-                onChange={updateForm}
-              />
-              Đang bật
-            </label>
-            <button type="submit" className="admin-btn admin-btn-primary">
-              Tạo voucher
-            </button>
-          </div>
-        </form>
+        <div className="admin-deals-metrics">
+          <article className="admin-deals-metric is-total">
+            <span className="admin-deals-metric-label">Tổng mã</span>
+            <span className="admin-deals-metric-value">{vouchers.length}</span>
+          </article>
+          <article className="admin-deals-metric is-running">
+            <span className="admin-deals-metric-label">Đang chạy</span>
+            <span className="admin-deals-metric-value">{statusCounts.running}</span>
+          </article>
+          <article className="admin-deals-metric is-upcoming">
+            <span className="admin-deals-metric-label">Sắp diễn ra</span>
+            <span className="admin-deals-metric-value">{statusCounts.upcoming}</span>
+          </article>
+          <article className="admin-deals-metric is-expired">
+            <span className="admin-deals-metric-label">Đã hết hạn</span>
+            <span className="admin-deals-metric-value">{statusCounts.expired}</span>
+          </article>
+        </div>
       </section>
+
+      <AdminCreatePanel
+        title="Thêm voucher mới"
+        description="Mã áp dụng tại checkout — giảm % hoặc số tiền cố định."
+        icon={PlusIcon}
+      >
+        <form onSubmit={createVoucher} className="admin-panel-body">
+          <AdminVoucherFields
+            values={form}
+            onFieldChange={updateFormField}
+            footerAction={
+              <button
+                type="submit"
+                disabled={isCreating}
+                className="admin-btn admin-btn-primary"
+              >
+                <PlusIcon className="h-4 w-4" />
+                {isCreating ? "Đang tạo..." : "Tạo voucher"}
+              </button>
+            }
+          />
+        </form>
+      </AdminCreatePanel>
 
       {message && <AdminAlert tone="success">{message}</AdminAlert>}
       {error && <AdminAlert tone="error">{error}</AdminAlert>}
 
-      <AdminToolbar
-        search={search}
-        onSearchChange={setSearch}
-        searchPlaceholder="Tìm mã voucher..."
-        countLabel={`${filteredVouchers.length} / ${vouchers.length} voucher`}
-        onRefresh={loadVouchers}
-        isRefreshing={status === "loading"}
-      />
+      <AdminDataSection>
+        <AdminToolbar
+          search={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Tìm mã hoặc mô tả..."
+          countLabel={`${filteredVouchers.length} / ${vouchers.length} mã · ${statusCounts.totalUses} lượt dùng`}
+          onRefresh={loadVouchers}
+          isRefreshing={status === "loading"}
+        />
 
-      {status === "loading" && <AdminLoading rows={5} columns={5} />}
+        {status === "loading" && <AdminLoading rows={3} variant="cards" />}
 
-      {status === "success" && (
-        <div className="admin-table-wrap mt-4">
-          <div className="admin-table-scroll">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Mã</th>
-                  <th>Ưu đãi</th>
-                  <th>Điều kiện</th>
-                  <th>Hiệu lực</th>
-                  <th>Lượt dùng</th>
-                  <th>Hiệu lực</th>
-                  <th>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredVouchers.length === 0 && (
-                  <tr>
-                    <td colSpan={7}>
-                      <p className="admin-empty">Chưa có voucher.</p>
-                    </td>
-                  </tr>
-                )}
+        {status === "success" && (
+          <div className="admin-voucher-list">
+            {filteredVouchers.length === 0 && (
+              <AdminEmptyState
+                icon={TagIcon}
+                title="Chưa có voucher"
+                description="Tạo mã giảm giá mới ở form phía trên."
+              />
+            )}
 
-                {filteredVouchers.map((voucher) => {
-                  const voucherStatus = getCampaignStatus(voucher);
-
-                  return (
-                  <tr key={voucher.id}>
-                    <td>
-                      <input
-                        value={drafts[voucher.id]?.code || ""}
-                        onChange={(event) =>
-                          updateDraft(voucher.id, "code", event.target.value)
-                        }
-                        className="admin-input min-w-28 font-mono uppercase"
-                      />
-                    </td>
-                    <td>
-                      <select
-                        value={drafts[voucher.id]?.discount_type || "percent"}
-                        onChange={(event) =>
-                          updateDraft(
-                            voucher.id,
-                            "discount_type",
-                            event.target.value,
-                          )
-                        }
-                        className="admin-select min-w-28"
-                      >
-                        <option value="percent">%</option>
-                        <option value="fixed">Cố định</option>
-                      </select>
-                      <input
-                        type="number"
-                        min="0"
-                        value={drafts[voucher.id]?.discount_value || ""}
-                        onChange={(event) =>
-                          updateDraft(
-                            voucher.id,
-                            "discount_value",
-                            event.target.value,
-                          )
-                        }
-                        className="admin-input mt-2 w-28"
-                      />
-                      <p className="admin-table-sub mt-1">
-                        {formatOffer({
-                          discount_type: drafts[voucher.id]?.discount_type,
-                          discount_value: drafts[voucher.id]?.discount_value,
-                        })}
-                      </p>
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        min="0"
-                        value={drafts[voucher.id]?.min_order_amount || ""}
-                        onChange={(event) =>
-                          updateDraft(
-                            voucher.id,
-                            "min_order_amount",
-                            event.target.value,
-                          )
-                        }
-                        className="admin-input w-32"
-                        placeholder="Đơn tối thiểu"
-                      />
-                    </td>
-                    <td className="min-w-44 space-y-2">
-                      <input
-                        type="datetime-local"
-                        value={drafts[voucher.id]?.starts_at || ""}
-                        onChange={(event) =>
-                          updateDraft(
-                            voucher.id,
-                            "starts_at",
-                            event.target.value,
-                          )
-                        }
-                        className="admin-input"
-                      />
-                      <input
-                        type="datetime-local"
-                        value={drafts[voucher.id]?.ends_at || ""}
-                        onChange={(event) =>
-                          updateDraft(
-                            voucher.id,
-                            "ends_at",
-                            event.target.value,
-                          )
-                        }
-                        className="admin-input"
-                      />
-                    </td>
-                    <td>
-                      {voucher.used_count}
-                      {voucher.usage_limit ? ` / ${voucher.usage_limit}` : ""}
-                    </td>
-                    <td>
-                      <AdminStatusBadge
-                        label={voucherStatus.label}
-                        tone={voucherStatus.tone}
-                      />
-                      <label className="mt-2 flex items-center gap-2 text-xs">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(drafts[voucher.id]?.is_active)}
-                          onChange={(event) =>
-                            updateDraft(
-                              voucher.id,
-                              "is_active",
-                              event.target.checked,
-                            )
-                          }
-                        />
-                        Bật mã
-                      </label>
-                    </td>
-                    <td>
-                      <div className="admin-actions">
-                        <button
-                          type="button"
-                          onClick={() => saveVoucher(voucher.id)}
-                          className="admin-btn admin-btn-primary"
-                        >
-                          Lưu
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => removeVoucher(voucher.id)}
-                          className="admin-btn admin-btn-danger"
-                        >
-                          Xóa
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-                })}
-              </tbody>
-            </table>
+            {filteredVouchers.map((voucher) => (
+              <AdminVoucherCard
+                key={voucher.id}
+                voucher={voucher}
+                draft={drafts[voucher.id] || buildDraft(voucher)}
+                voucherStatus={getCampaignStatus(voucher)}
+                onFieldChange={(field, value) =>
+                  updateDraftField(voucher.id, field, value)
+                }
+                onSave={() => saveVoucher(voucher.id)}
+                onDelete={() => removeVoucher(voucher.id)}
+                isSaving={savingId === voucher.id}
+              />
+            ))}
           </div>
-        </div>
-      )}
-    </>
+        )}
+      </AdminDataSection>
+    </div>
   );
 }
 

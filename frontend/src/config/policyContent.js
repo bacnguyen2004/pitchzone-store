@@ -57,7 +57,7 @@ export const policySections = [
       "Các hình thức thanh toán được chấp nhận và quy trình xác nhận giao dịch.",
     points: [
       "Thanh toán khi nhận hàng (COD): thanh toán trực tiếp cho nhân viên giao hàng khi kiểm tra và nhận sản phẩm.",
-      "Chuyển khoản ngân hàng: thông tin tài khoản được gửi qua email xác nhận đơn. Đơn được xử lý sau khi PitchZone xác nhận đã nhận tiền.",
+      "VNPay: thanh toán online qua thẻ ATM, Visa, Mastercard hoặc QR. Đơn được xử lý sau khi VNPay xác nhận thanh toán thành công.",
       "PitchZone không thu thêm phí ẩn ngoài giá sản phẩm và phí vận chuyển (nếu có) hiển thị tại checkout.",
       "Hóa đơn bán hàng điện tử hoặc biên nhận được cung cấp theo yêu cầu trong vòng 7 ngày kể từ ngày giao hàng thành công.",
     ],

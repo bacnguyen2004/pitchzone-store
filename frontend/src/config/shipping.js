@@ -1,1 +1,3 @@
-export const FREE_SHIPPING_THRESHOLD = 2_000_000;
+import { getFreeShippingThreshold } from "./env";
+
+export const FREE_SHIPPING_THRESHOLD = getFreeShippingThreshold();

@@ -11,6 +11,7 @@ import {
   updateAdminVariant,
 } from "../api/admin";
 import AdminAlert from "../components/admin/AdminAlert";
+import AdminDataSection from "../components/admin/AdminDataSection";
 import AdminConfirmDialog from "../components/admin/AdminConfirmDialog";
 import AdminImageField from "../components/admin/AdminImageField";
 import AdminLoading from "../components/admin/AdminLoading";
@@ -272,130 +273,130 @@ function AdminProductsPage() {
       {message && <AdminAlert tone="success">{message}</AdminAlert>}
       {error && <AdminAlert tone="error">{error}</AdminAlert>}
 
-      <AdminToolbar
-        search={search}
-        onSearchChange={handleSearchChange}
-        searchPlaceholder="Tìm theo tên, danh mục, thương hiệu..."
-        countLabel={`${count} sản phẩm`}
-        onRefresh={load}
-        isRefreshing={status === "loading"}
-        filter={
-          <div className="admin-filter-tabs" role="tablist" aria-label="Lọc trạng thái">
-            {visibilityFilters.map((option) => (
-              <button
-                key={option.value || "all"}
-                type="button"
-                role="tab"
-                aria-selected={visibilityFilter === option.value}
-                onClick={() => setVisibilityFilter(option.value)}
-                className={`admin-filter-tab${
-                  visibilityFilter === option.value ? " is-active" : ""
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        }
-      />
+      <AdminDataSection>
+        <AdminToolbar
+          search={search}
+          onSearchChange={handleSearchChange}
+          searchPlaceholder="Tìm theo tên, danh mục, thương hiệu..."
+          countLabel={`${count} sản phẩm`}
+          onRefresh={load}
+          isRefreshing={status === "loading"}
+          filter={
+            <div className="admin-filter-tabs" role="tablist" aria-label="Lọc trạng thái">
+              {visibilityFilters.map((option) => (
+                <button
+                  key={option.value || "all"}
+                  type="button"
+                  role="tab"
+                  aria-selected={visibilityFilter === option.value}
+                  onClick={() => setVisibilityFilter(option.value)}
+                  className={`admin-filter-tab${
+                    visibilityFilter === option.value ? " is-active" : ""
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          }
+        />
 
-      {status === "loading" && <AdminLoading rows={6} columns={6} />}
+        {status === "loading" && <AdminLoading rows={6} columns={7} />}
 
-      {status === "success" && (
-        <>
-          <AdminTable>
-            <thead>
-              <tr>
-                <th className="is-media">Ảnh</th>
-                <th>Sản phẩm</th>
-                <th>Danh mục</th>
-                <th className="is-numeric">Giá gốc</th>
-                <th className="is-numeric">Giá sale</th>
-                <th className="is-money">Giá bán</th>
-                <th className="is-numeric">Tồn kho</th>
-                <th>Trạng thái</th>
-                <th className="is-actions" />
-              </tr>
-            </thead>
-            <tbody>
-              {products.length === 0 && (
-                <AdminTableEmpty
-                  colSpan={9}
-                  message="Không có sản phẩm phù hợp."
-                />
-              )}
-              {products.map((product) => {
-                const variant = getPrimaryVariant(product);
+        {status === "success" && (
+          <>
+            <AdminTable className="is-products">
+              <thead>
+                <tr>
+                  <th className="is-media">Ảnh</th>
+                  <th className="is-product">Sản phẩm</th>
+                  <th className="is-category">Danh mục</th>
+                  <th className="is-money">Giá</th>
+                  <th className="is-stock">Tồn</th>
+                  <th className="is-status">Trạng thái</th>
+                  <th className="is-actions-wide" />
+                </tr>
+              </thead>
+              <tbody>
+                {products.length === 0 && (
+                  <AdminTableEmpty
+                    colSpan={7}
+                    message="Không có sản phẩm phù hợp."
+                  />
+                )}
+                {products.map((product) => {
+                  const variant = getPrimaryVariant(product);
+                  const hasVariantSale =
+                    variant?.sale_price &&
+                    Number(variant.sale_price) !== Number(product.base_price);
 
-                return (
-                  <tr key={product.id}>
-                    <td className="is-media">
-                      <AdminThumb
-                        src={getAdminImageUrl(product)}
-                        alt={product.name}
-                      />
-                    </td>
-                    <td>
-                      <div className="admin-table-cell-stack">
-                        <p className="admin-table-title">{product.name}</p>
-                        <p className="admin-table-sub">
-                          {product.brand?.name || "Không thương hiệu"} ·{" "}
-                          {product.variants?.length || 0} biến thể
-                        </p>
-                      </div>
-                    </td>
-                    <td>
-                      <span className="admin-table-chip">
-                        {product.category?.name}
-                      </span>
-                    </td>
-                    <td className="is-money">{formatCurrency(product.base_price)}</td>
-                    <td className="is-numeric is-muted">
-                      {variant?.sale_price
-                        ? formatCurrency(variant.sale_price)
-                        : "—"}
-                    </td>
-                    <td className="is-money">
-                      <div className="admin-table-cell-stack">
-                        <span>{formatCurrency(product.price)}</span>
-                        {product.is_on_sale && (
-                          <span className="admin-badge is-processing">
-                            -{product.discount_percent}%
+                  return (
+                    <tr key={product.id}>
+                      <td className="is-media">
+                        <AdminThumb
+                          src={getAdminImageUrl(product)}
+                          alt={product.name}
+                        />
+                      </td>
+                      <td className="is-product">
+                        <div className="admin-table-cell-stack">
+                          <p className="admin-table-title">{product.name}</p>
+                          <p className="admin-table-sub">
+                            {product.brand?.name || "Không thương hiệu"} ·{" "}
+                            {product.variants?.length || 0} biến thể
+                          </p>
+                        </div>
+                      </td>
+                      <td className="is-category">
+                        <span className="admin-table-chip">
+                          {product.category?.name || "—"}
+                        </span>
+                      </td>
+                      <td className="is-money">
+                        <div className="admin-table-cell-stack">
+                          <span className="admin-table-price-main">
+                            {formatCurrency(product.price)}
                           </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="is-numeric is-strong">{product.stock}</td>
-                    <td>
-                      <AdminToggle
-                        checked={Boolean(product.is_active)}
-                        onChange={(nextActive) =>
-                          handleVisibilityToggle(product, nextActive)
-                        }
-                        disabled={togglingIds.has(product.id)}
-                        label={product.is_active ? "Đang bán" : "Đã ẩn"}
-                      />
-                    </td>
-                    <td className="is-actions">
-                      <div className="admin-actions">
-                        <button
-                          type="button"
-                          onClick={() => setVariantProduct(product)}
-                          className="admin-btn admin-btn-secondary"
-                        >
-                          Biến thể
-                        </button>
+                          {product.is_on_sale && (
+                            <div className="admin-table-price-meta">
+                              <span className="admin-table-price-base">
+                                {formatCurrency(product.base_price)}
+                              </span>
+                              <span className="admin-badge is-processing">
+                                -{product.discount_percent}%
+                              </span>
+                            </div>
+                          )}
+                          {hasVariantSale && (
+                            <span className="admin-table-sub">
+                              Sale: {formatCurrency(variant.sale_price)}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="is-stock is-strong">{product.stock}</td>
+                      <td className="is-status">
+                        <AdminToggle
+                          checked={Boolean(product.is_active)}
+                          onChange={(nextActive) =>
+                            handleVisibilityToggle(product, nextActive)
+                          }
+                          disabled={togglingIds.has(product.id)}
+                          label={product.is_active ? "Đang bán" : "Đã ẩn"}
+                        />
+                      </td>
+                      <td className="is-actions-wide">
                         <AdminTableActions
+                          onVariants={() => setVariantProduct(product)}
                           onEdit={() => openEditModal(product)}
                           onDelete={() => setDeleteTarget(product)}
                         />
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </AdminTable>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </AdminTable>
 
           <AdminPagination
             page={page}
@@ -406,7 +407,8 @@ function AdminProductsPage() {
             onPageSizeChange={handlePageSizeChange}
           />
         </>
-      )}
+        )}
+      </AdminDataSection>
 
       <AdminModal
         open={modalOpen}

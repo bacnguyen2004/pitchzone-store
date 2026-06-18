@@ -3,6 +3,7 @@ Django settings for config project.
 """
 
 import os
+import sys
 from datetime import timedelta
 from pathlib import Path
 
@@ -113,6 +114,15 @@ else:
         }
     }
 
+# Test suite dùng SQLite in-memory — tránh lỗi quyền CREATE DATABASE trên PostgreSQL
+if "test" in sys.argv:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
+        }
+    }
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -194,10 +204,50 @@ CORS_ALLOWED_ORIGINS = env_list(
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@pitchzone.local")
-EMAIL_BACKEND = os.getenv(
-    "EMAIL_BACKEND",
-    "django.core.mail.backends.console.EmailBackend",
+EMAIL_HOST = os.getenv("EMAIL_HOST", "")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
+EMAIL_USE_SSL = env_bool("EMAIL_USE_SSL", False)
+EMAIL_FAIL_SILENTLY = env_bool("EMAIL_FAIL_SILENTLY", DEBUG)
+
+if EMAIL_HOST:
+    EMAIL_BACKEND = os.getenv(
+        "EMAIL_BACKEND",
+        "django.core.mail.backends.smtp.EmailBackend",
+    )
+else:
+    EMAIL_BACKEND = os.getenv(
+        "EMAIL_BACKEND",
+        "django.core.mail.backends.console.EmailBackend",
+    )
+
+GHN_TOKEN = os.getenv("GHN_TOKEN", "")
+GHN_SHOP_ID = os.getenv("GHN_SHOP_ID", "")
+GHN_USE_SANDBOX = env_bool("GHN_USE_SANDBOX", False)
+GHN_FROM_DISTRICT_ID = os.getenv("GHN_FROM_DISTRICT_ID", "")
+GHN_FROM_CITY = os.getenv("GHN_FROM_CITY", "Hồ Chí Minh")
+GHN_FROM_NAME = os.getenv("GHN_FROM_NAME", "PitchZone Store")
+GHN_FROM_PHONE = os.getenv("GHN_FROM_PHONE", "0900000000")
+GHN_FROM_ADDRESS = os.getenv("GHN_FROM_ADDRESS", "123 Store Street")
+GHN_FROM_WARD = os.getenv("GHN_FROM_WARD", "Phường 1")
+
+VNPAY_TMN_CODE = os.getenv("VNPAY_TMN_CODE", "")
+VNPAY_HASH_SECRET = os.getenv("VNPAY_HASH_SECRET", "")
+VNPAY_PAYMENT_URL = os.getenv(
+    "VNPAY_PAYMENT_URL",
+    "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
 )
+VNPAY_RETURN_URL = os.getenv(
+    "VNPAY_RETURN_URL",
+    "http://127.0.0.1:8000/api/payments/vnpay/return/",
+)
+VNPAY_IPN_URL = os.getenv(
+    "VNPAY_IPN_URL",
+    "http://127.0.0.1:8000/api/payments/vnpay/ipn/",
+)
+VNPAY_EXPIRE_MINUTES = int(os.getenv("VNPAY_EXPIRE_MINUTES", "15"))
 
 if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True

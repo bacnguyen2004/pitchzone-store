@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from catalog.serializers import ProductVariantSerializer
+from catalog.serializers import ProductVariantSerializer, absolute_media_url
 
 User = get_user_model()
 from orders.services.vouchers import (
@@ -71,6 +71,7 @@ class AdminVoucherSerializer(VoucherWriteSerializer):
 
 class OrderItemSerializer(serializers.ModelSerializer):
     variant = ProductVariantSerializer(read_only=True)
+    product_image = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderItem
@@ -80,11 +81,19 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "variant",
             "product_name",
             "variant_name",
+            "product_image",
             "compare_at_price",
             "price",
             "quantity",
             "total_price",
         )
+
+    def get_product_image(self, obj):
+        product = obj.product
+        image = product.images.filter(is_main=True).first() or product.images.first()
+        if not image or not image.image:
+            return None
+        return absolute_media_url(self.context.get("request"), image.image)
 
 
 class OrderUserSerializer(serializers.ModelSerializer):
@@ -108,12 +117,20 @@ class OrderSerializer(serializers.ModelSerializer):
             "city",
             "note",
             "payment_method",
+            "payment_status",
             "status",
             "subtotal",
             "shipping_fee",
             "discount_amount",
             "voucher_code",
             "total_price",
+            "carrier",
+            "tracking_code",
+            "carrier_order_code",
+            "carrier_status",
+            "district_id",
+            "ward_code",
+            "shipping_weight",
             "items",
             "created_at",
         )
@@ -131,6 +148,8 @@ class CheckoutSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=20)
     address = serializers.CharField(max_length=255)
     city = serializers.CharField(required=False, allow_blank=True, max_length=100)
+    district_id = serializers.IntegerField(required=False, allow_null=True)
+    ward_code = serializers.CharField(required=False, allow_blank=True, max_length=32)
     note = serializers.CharField(required=False, allow_blank=True)
     payment_method = serializers.ChoiceField(
         choices=Order.PAYMENT_METHOD_CHOICES,
@@ -149,6 +168,10 @@ class CheckoutSerializer(serializers.Serializer):
 class ShippingQuoteSerializer(serializers.Serializer):
     subtotal = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=0)
     city = serializers.CharField(required=False, allow_blank=True, max_length=100)
+    district_id = serializers.IntegerField(required=False, allow_null=True)
+    ward_code = serializers.CharField(required=False, allow_blank=True, max_length=32)
+    weight_grams = serializers.IntegerField(required=False, min_value=1)
+    item_count = serializers.IntegerField(required=False, min_value=1)
 
 
 class VoucherValidateSerializer(serializers.Serializer):
@@ -160,7 +183,16 @@ class VoucherValidateSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         voucher = get_voucher_by_code(attrs["code"])
-        validate_voucher(voucher, attrs["subtotal"])
+        try:
+            validate_voucher(voucher, attrs["subtotal"])
+        except serializers.ValidationError as exc:
+            detail = exc.detail
+            if isinstance(detail, dict) and "voucher_code" in detail:
+                raise serializers.ValidationError(
+                    {"voucher_code": detail["voucher_code"]}
+                ) from exc
+            raise
+
         attrs["voucher"] = voucher
         attrs["discount_amount"] = compute_voucher_discount(
             attrs["subtotal"],

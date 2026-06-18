@@ -17,16 +17,28 @@ function ResetPasswordPage() {
   const token = searchParams.get("token") || "";
 
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event) {
     event.preventDefault();
     setError("");
+
+    if (password !== passwordConfirm) {
+      setError("Mật khẩu xác nhận không khớp.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      await resetPassword({ uid, token, password });
+      await resetPassword({
+        uid,
+        token,
+        password,
+        password_confirm: passwordConfirm,
+      });
       navigate("/login", { replace: true, state: { reset: true } });
     } catch (err) {
       const detail = err?.response?.data?.detail;
@@ -77,6 +89,18 @@ function ResetPasswordPage() {
           onChange={(event) => setPassword(event.target.value)}
           autoComplete="new-password"
           placeholder="Tối thiểu 8 ký tự"
+          icon={<LockIcon />}
+          required
+        />
+
+        <AuthField
+          label="Xác nhận mật khẩu"
+          name="password_confirm"
+          type="password"
+          value={passwordConfirm}
+          onChange={(event) => setPasswordConfirm(event.target.value)}
+          autoComplete="new-password"
+          placeholder="Nhập lại mật khẩu mới"
           icon={<LockIcon />}
           required
         />

@@ -1,4 +1,6 @@
-const ADDRESS_API_BASE = "https://provinces.open-api.vn/api/v2";
+import { getAddressApiBase } from "../config/env";
+
+const ADDRESS_API_BASE = getAddressApiBase();
 
 async function fetchAddressJson(path) {
   const response = await fetch(`${ADDRESS_API_BASE}${path}`);

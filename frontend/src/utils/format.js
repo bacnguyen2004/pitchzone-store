@@ -1,3 +1,5 @@
+import { getMediaBaseUrl } from "../config/env";
+
 export function formatCurrency(value) {
   return `${Number(value || 0).toLocaleString("vi-VN")}đ`;
 }
@@ -11,7 +13,8 @@ export function resolveMediaUrl(path) {
     return path;
   }
 
-  return `http://127.0.0.1:8000${path}`;
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  return `${getMediaBaseUrl()}${normalized}`;
 }
 
 export function getMainImage(product) {

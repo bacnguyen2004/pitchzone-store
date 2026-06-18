@@ -27,6 +27,7 @@ import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import OrderDetailPage from "./pages/OrderDetailPage";
 import OrderHistoryPage from "./pages/OrderHistoryPage";
 import OrderSuccessPage from "./pages/OrderSuccessPage";
+import VNPayReturnPage from "./pages/VNPayReturnPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ProfilePage from "./pages/ProfilePage";
 import ProductDetailPage from "./pages/ProductDetailPage";
@@ -58,6 +59,7 @@ function App() {
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/orders" element={<OrderHistoryPage />} />
             <Route path="/orders/success/:id" element={<OrderSuccessPage />} />
+            <Route path="/payment/vnpay/return" element={<VNPayReturnPage />} />
             <Route path="/orders/:id" element={<OrderDetailPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="*" element={<NotFoundPage />} />

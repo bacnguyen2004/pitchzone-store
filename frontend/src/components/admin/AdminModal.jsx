@@ -1,6 +1,14 @@
 import { useEffect } from "react";
 
-function AdminModal({ open, title, description, onClose, children, footer }) {
+function AdminModal({
+  open,
+  title,
+  description,
+  onClose,
+  children,
+  footer,
+  size = "md",
+}) {
   useEffect(() => {
     if (!open) {
       return undefined;
@@ -32,7 +40,7 @@ function AdminModal({ open, title, description, onClose, children, footer }) {
       onClick={onClose}
     >
       <div
-        className="admin-modal"
+        className={`admin-modal${size !== "md" ? ` is-${size}` : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="admin-modal-title"

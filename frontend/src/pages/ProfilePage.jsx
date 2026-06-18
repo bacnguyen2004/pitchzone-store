@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { getOrders } from "../api/orders";
-import { getUserAddresses } from "../api/userAddresses";
 import { UserIcon } from "../components/AuthIcons";
 import ProfileAccountForm from "../components/profile/ProfileAccountForm";
 import ProfileAddresses from "../components/profile/ProfileAddresses";

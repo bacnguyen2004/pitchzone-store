@@ -9,10 +9,15 @@ import {
   updateAdminPromotion,
 } from "../api/admin";
 import AdminAlert from "../components/admin/AdminAlert";
+import AdminCampaignCard from "../components/admin/AdminCampaignCard";
+import AdminCreatePanel from "../components/admin/AdminCreatePanel";
+import AdminDataSection from "../components/admin/AdminDataSection";
+import AdminEmptyState from "../components/admin/AdminEmptyState";
 import AdminLoading from "../components/admin/AdminLoading";
 import AdminPageHeader from "../components/admin/AdminPageHeader";
-import AdminStatusBadge from "../components/admin/AdminStatusBadge";
+import AdminPromotionFields from "../components/admin/AdminPromotionFields";
 import AdminToolbar from "../components/admin/AdminToolbar";
+import { PlusIcon, SparklesIcon } from "../components/StoreIcons";
 import { getCampaignStatus } from "../utils/adminStatus";
 import { getApiErrorMessage } from "../utils/adminErrors";
 import { fromDatetimeLocal, toDatetimeLocal } from "../utils/datetime";
@@ -84,6 +89,8 @@ function AdminPromotionsPage() {
   const [status, setStatus] = useState("loading");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [savingSlug, setSavingSlug] = useState(null);
+  const [isCreating, setIsCreating] = useState(false);
 
   async function loadData() {
     setStatus("loading");
@@ -132,30 +139,34 @@ function AdminPromotionsPage() {
     );
   }, [promotions, search]);
 
-  function updateForm(event) {
-    const { name, value, type, checked } = event.target;
-    const nextValue = type === "checkbox" ? checked : value;
+  const statusCounts = useMemo(() => {
+    const counts = { active: 0, running: 0, upcoming: 0, expired: 0 };
+    promotions.forEach((promotion) => {
+      const campaignStatus = getCampaignStatus(promotion);
+      if (campaignStatus.tone === "active") {
+        counts.running += 1;
+      } else if (campaignStatus.tone === "pending") {
+        counts.upcoming += 1;
+      } else if (campaignStatus.tone === "cancelled") {
+        counts.expired += 1;
+      }
+      if (promotion.is_active) {
+        counts.active += 1;
+      }
+    });
+    return counts;
+  }, [promotions]);
 
+  function updateFormField(field, value) {
     setForm((current) => ({
       ...current,
-      [name]: nextValue,
-      ...(name === "name" && !current.slug ? { slug: slugify(value) } : {}),
-      ...(name === "title" && !current.name ? { name: value } : {}),
+      [field]: value,
+      ...(field === "name" && !current.slug ? { slug: slugify(value) } : {}),
+      ...(field === "title" && !current.name ? { name: value } : {}),
     }));
   }
 
-  function updateFormProducts(event) {
-    const productIds = Array.from(event.target.selectedOptions).map((option) =>
-      Number(option.value),
-    );
-
-    setForm((current) => ({
-      ...current,
-      product_ids: productIds,
-    }));
-  }
-
-  function updateDraft(slug, field, value) {
+  function updateDraftField(slug, field, value) {
     setDrafts((current) => ({
       ...current,
       [slug]: {
@@ -165,16 +176,9 @@ function AdminPromotionsPage() {
     }));
   }
 
-  function updateDraftProducts(slug, event) {
-    const productIds = Array.from(event.target.selectedOptions).map((option) =>
-      Number(option.value),
-    );
-
-    updateDraft(slug, "product_ids", productIds);
-  }
-
   async function createPromotion(event) {
     event.preventDefault();
+    setIsCreating(true);
     setMessage("");
     setError("");
 
@@ -185,10 +189,13 @@ function AdminPromotionsPage() {
       await loadData();
     } catch (err) {
       setError(getApiErrorMessage(err, "Không thể tạo deal."));
+    } finally {
+      setIsCreating(false);
     }
   }
 
   async function savePromotion(slug) {
+    setSavingSlug(slug);
     setMessage("");
     setError("");
 
@@ -198,6 +205,8 @@ function AdminPromotionsPage() {
       await loadData();
     } catch (err) {
       setError(getApiErrorMessage(err, "Không thể cập nhật deal."));
+    } finally {
+      setSavingSlug(null);
     }
   }
 
@@ -219,290 +228,110 @@ function AdminPromotionsPage() {
   }
 
   return (
-    <>
-      <AdminPageHeader
-        title="Deal sốc"
-        description="Quản lý flash sale, sản phẩm trong deal và thời gian hiệu lực."
-      />
+    <div className="admin-deals-page">
+      <section className="admin-deals-top">
+        <AdminPageHeader
+          title="Deal sốc"
+          description="Quản lý flash sale, sản phẩm trong deal và thời gian hiệu lực."
+        />
 
-      <section className="admin-panel mt-6">
-        <header className="admin-panel-head">
-          <h2>Tạo chiến dịch</h2>
-        </header>
-        <form onSubmit={createPromotion} className="admin-panel-body">
-          <div className="admin-form-grid">
-            <input
-              name="name"
-              value={form.name}
-              onChange={updateForm}
-              placeholder="Tên nội bộ"
-              className="admin-input"
-              required
-            />
-            <input
-              name="slug"
-              value={form.slug}
-              onChange={updateForm}
-              placeholder="slug-deal"
-              className="admin-input"
-              required
-            />
-            <input
-              name="eyebrow"
-              value={form.eyebrow}
-              onChange={updateForm}
-              placeholder="Eyebrow"
-              className="admin-input"
-            />
-            <input
-              name="title"
-              value={form.title}
-              onChange={updateForm}
-              placeholder="Tiêu đề hiển thị"
-              className="admin-input"
-              required
-            />
-            <select
-              name="discount_type"
-              value={form.discount_type}
-              onChange={updateForm}
-              className="admin-select"
-            >
-              <option value="percent">Giảm %</option>
-              <option value="fixed">Giảm cố định</option>
-            </select>
-            <input
-              name="discount_value"
-              type="number"
-              min="0"
-              value={form.discount_value}
-              onChange={updateForm}
-              placeholder="Giá trị giảm"
-              className="admin-input"
-              required
-            />
-            <input
-              name="starts_at"
-              type="datetime-local"
-              value={form.starts_at}
-              onChange={updateForm}
-              className="admin-input"
-              required
-            />
-            <input
-              name="ends_at"
-              type="datetime-local"
-              value={form.ends_at}
-              onChange={updateForm}
-              className="admin-input"
-              required
-            />
-            <textarea
-              name="description"
-              value={form.description}
-              onChange={updateForm}
-              placeholder="Mô tả deal"
-              className="admin-textarea lg:col-span-2"
-              rows="2"
-            />
-            <textarea
-              name="perks"
-              value={form.perks}
-              onChange={updateForm}
-              placeholder="Ưu đãi kèm (mỗi dòng một mục)"
-              className="admin-textarea lg:col-span-2"
-              rows="2"
-            />
-            <select
-              multiple
-              value={form.product_ids.map(String)}
-              onChange={updateFormProducts}
-              className="admin-select lg:col-span-2 min-h-28"
-            >
-              {products.map((product) => (
-                <option key={product.id} value={product.id}>
-                  {product.name}
-                </option>
-              ))}
-            </select>
-            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-              <input
-                name="is_active"
-                type="checkbox"
-                checked={form.is_active}
-                onChange={updateForm}
-              />
-              Đang bật
-            </label>
-            <button type="submit" className="admin-btn admin-btn-primary">
-              Tạo deal
-            </button>
-          </div>
-        </form>
+        <div className="admin-deals-metrics">
+          <article className="admin-deals-metric is-total">
+            <span className="admin-deals-metric-label">Tổng deal</span>
+            <span className="admin-deals-metric-value">{promotions.length}</span>
+          </article>
+          <article className="admin-deals-metric is-running">
+            <span className="admin-deals-metric-label">Đang chạy</span>
+            <span className="admin-deals-metric-value">{statusCounts.running}</span>
+          </article>
+          <article className="admin-deals-metric is-upcoming">
+            <span className="admin-deals-metric-label">Sắp diễn ra</span>
+            <span className="admin-deals-metric-value">{statusCounts.upcoming}</span>
+          </article>
+          <article className="admin-deals-metric is-expired">
+            <span className="admin-deals-metric-label">Đã hết hạn</span>
+            <span className="admin-deals-metric-value">{statusCounts.expired}</span>
+          </article>
+        </div>
       </section>
+
+      <AdminCreatePanel
+        title="Tạo chiến dịch mới"
+        description="Thiết lập flash sale, chọn sản phẩm và thời gian hiệu lực."
+        icon={PlusIcon}
+      >
+        <form onSubmit={createPromotion} className="admin-panel-body">
+          <AdminPromotionFields
+            values={form}
+            onFieldChange={updateFormField}
+            onProductsChange={(productIds) => updateFormField("product_ids", productIds)}
+            products={products}
+            footerAction={
+              <button
+                type="submit"
+                disabled={isCreating}
+                className="admin-btn admin-btn-primary"
+              >
+                <PlusIcon className="h-4 w-4" />
+                {isCreating ? "Đang tạo..." : "Tạo deal"}
+              </button>
+            }
+          />
+        </form>
+      </AdminCreatePanel>
 
       {message && <AdminAlert tone="success">{message}</AdminAlert>}
       {error && <AdminAlert tone="error">{error}</AdminAlert>}
 
-      <AdminToolbar
-        search={search}
-        onSearchChange={setSearch}
-        searchPlaceholder="Tìm deal..."
-        countLabel={`${filteredPromotions.length} / ${promotions.length} chiến dịch`}
-        onRefresh={loadData}
-        isRefreshing={status === "loading"}
-      />
+      <AdminDataSection>
+        <AdminToolbar
+          search={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Tìm theo tên, slug, tiêu đề..."
+          countLabel={`${filteredPromotions.length} / ${promotions.length} chiến dịch`}
+          onRefresh={loadData}
+          isRefreshing={status === "loading"}
+        />
 
-      {status === "loading" && <AdminLoading rows={3} columns={3} />}
+        {status === "loading" && <AdminLoading rows={3} variant="cards" />}
 
-      {status === "success" && (
-        <div className="mt-4 space-y-4">
-          {filteredPromotions.length === 0 && (
-            <p className="admin-empty">Chưa có chiến dịch deal.</p>
-          )}
+        {status === "success" && (
+          <div className="admin-campaign-list">
+            {filteredPromotions.length === 0 && (
+              <AdminEmptyState
+                icon={SparklesIcon}
+                title="Chưa có chiến dịch deal"
+                description="Tạo flash sale mới ở form phía trên."
+              />
+            )}
 
-          {filteredPromotions.map((promotion) => {
-            const draft = drafts[promotion.slug] || buildDraft(promotion);
-            const campaignStatus = getCampaignStatus(promotion);
+            {filteredPromotions.map((promotion) => {
+              const draft = drafts[promotion.slug] || buildDraft(promotion);
+              const campaignStatus = getCampaignStatus(promotion);
 
-            return (
-              <section key={promotion.slug} className="admin-panel">
-                <header className="admin-panel-head">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h2>{promotion.title}</h2>
-                      <AdminStatusBadge
-                        label={campaignStatus.label}
-                        tone={campaignStatus.tone}
-                      />
-                    </div>
-                    <p className="text-sm text-slate-500">
-                      {promotion.product_count} sản phẩm · {promotion.slug}
-                    </p>
-                  </div>
-                  <div className="admin-actions">
-                    <button
-                      type="button"
-                      onClick={() => savePromotion(promotion.slug)}
-                      className="admin-btn admin-btn-primary"
-                    >
-                      Lưu
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => removePromotion(promotion.slug)}
-                      className="admin-btn admin-btn-danger"
-                    >
-                      Xóa
-                    </button>
-                  </div>
-                </header>
-
-                <div className="admin-panel-body">
-                  <div className="admin-form-grid">
-                    <input
-                      value={draft.name}
-                      onChange={(event) =>
-                        updateDraft(promotion.slug, "name", event.target.value)
-                      }
-                      className="admin-input"
-                      placeholder="Tên nội bộ"
-                    />
-                    <input
-                      value={draft.title}
-                      onChange={(event) =>
-                        updateDraft(promotion.slug, "title", event.target.value)
-                      }
-                      className="admin-input"
-                      placeholder="Tiêu đề"
-                    />
-                    <select
-                      value={draft.discount_type}
-                      onChange={(event) =>
-                        updateDraft(
-                          promotion.slug,
-                          "discount_type",
-                          event.target.value,
-                        )
-                      }
-                      className="admin-select"
-                    >
-                      <option value="percent">Giảm %</option>
-                      <option value="fixed">Giảm cố định</option>
-                    </select>
-                    <input
-                      type="number"
-                      min="0"
-                      value={draft.discount_value}
-                      onChange={(event) =>
-                        updateDraft(
-                          promotion.slug,
-                          "discount_value",
-                          event.target.value,
-                        )
-                      }
-                      className="admin-input"
-                    />
-                    <input
-                      type="datetime-local"
-                      value={draft.starts_at}
-                      onChange={(event) =>
-                        updateDraft(
-                          promotion.slug,
-                          "starts_at",
-                          event.target.value,
-                        )
-                      }
-                      className="admin-input"
-                    />
-                    <input
-                      type="datetime-local"
-                      value={draft.ends_at}
-                      onChange={(event) =>
-                        updateDraft(
-                          promotion.slug,
-                          "ends_at",
-                          event.target.value,
-                        )
-                      }
-                      className="admin-input"
-                    />
-                    <select
-                      multiple
-                      value={draft.product_ids.map(String)}
-                      onChange={(event) =>
-                        updateDraftProducts(promotion.slug, event)
-                      }
-                      className="admin-select lg:col-span-2 min-h-28"
-                    >
-                      {products.map((product) => (
-                        <option key={product.id} value={product.id}>
-                          {product.name}
-                        </option>
-                      ))}
-                    </select>
-                    <label className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={draft.is_active}
-                        onChange={(event) =>
-                          updateDraft(
-                            promotion.slug,
-                            "is_active",
-                            event.target.checked,
-                          )
-                        }
-                      />
-                      Đang bật
-                    </label>
-                  </div>
-                </div>
-              </section>
-            );
-          })}
-        </div>
-      )}
-    </>
+              return (
+                <AdminCampaignCard
+                  key={promotion.slug}
+                  promotion={promotion}
+                  draft={draft}
+                  products={products}
+                  campaignStatus={campaignStatus}
+                  onFieldChange={(field, value) =>
+                    updateDraftField(promotion.slug, field, value)
+                  }
+                  onProductsChange={(productIds) =>
+                    updateDraftField(promotion.slug, "product_ids", productIds)
+                  }
+                  onSave={() => savePromotion(promotion.slug)}
+                  onDelete={() => removePromotion(promotion.slug)}
+                  isSaving={savingSlug === promotion.slug}
+                />
+              );
+            })}
+          </div>
+        )}
+      </AdminDataSection>
+    </div>
   );
 }
 

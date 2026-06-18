@@ -20,6 +20,7 @@ from django.contrib import admin
 from django.urls import include, path
 
 from config.health import health_check
+from orders.payment_views import VNPayIPNView, VNPayReturnView
 
 urlpatterns = [
     path("api/health/", health_check, name="health-check"),
@@ -29,6 +30,9 @@ urlpatterns = [
     path("api/admin/", include("accounts.admin_urls")),
     path("api/", include("carts.urls")),
     path("api/", include("orders.urls")),
+    # Alias giống bookstore — URL có thể đã đăng ký trên merchant VNPay
+    path("vnpay/return/", VNPayReturnView.as_view(), name="vnpay-return-alias"),
+    path("vnpay/ipn/", VNPayIPNView.as_view(), name="vnpay-ipn-alias"),
 ]
 
 if settings.DEBUG:

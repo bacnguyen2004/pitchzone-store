@@ -12,6 +12,7 @@ import { notifyCartUpdated } from "../hooks/useCartCount";
 import { getUserAddresses } from "../api/userAddresses";
 import { useAuth } from "../contexts/AuthContext";
 import { formatCurrency, getMainImage, resolveMediaUrl } from "../utils/format";
+import { getApiErrorMessage } from "../utils/apiErrors";
 import { buildProductsUrl } from "../utils/productFilters";
 import {
   ArrowLeftIcon,
@@ -19,7 +20,7 @@ import {
   EmptyBoxIcon,
   HomeIcon,
   ImagePlaceholderIcon,
-  ShieldCheckIcon,
+  PriceIcon,
   TruckIcon,
 } from "../components/StoreIcons";
 
@@ -38,11 +39,11 @@ const PAYMENT_METHODS = [
     Icon: TruckIcon,
   },
   {
-    id: "transfer",
-    label: "Chuyển khoản ngân hàng",
-    shortLabel: "Chuyển khoản",
-    description: "Nhận hướng dẫn chuyển khoản qua email xác nhận đơn.",
-    Icon: ShieldCheckIcon,
+    id: "vnpay",
+    label: "VNPay",
+    shortLabel: "VNPay",
+    description: "Thanh toán online qua thẻ ATM, Visa, Mastercard, QR.",
+    Icon: PriceIcon,
   },
 ];
 
@@ -154,6 +155,7 @@ function CheckoutSummary({
   hasFreeShipping,
   shippingRemaining,
   shippingFee,
+  shippingProvider,
   paymentMethod,
   isSubmitting,
   showActions = true,
@@ -274,6 +276,12 @@ function CheckoutSummary({
                 : formatCurrency(shippingFee)}
             </dd>
           </div>
+          {shippingProvider && (
+            <div>
+              <dt>Đơn vị ship</dt>
+              <dd>{shippingProvider}</dd>
+            </div>
+          )}
           <div>
             <dt>Hình thức</dt>
             <dd>{selectedPayment?.shortLabel}</dd>
@@ -356,6 +364,7 @@ function CheckoutPage() {
   });
   const [paymentMethod, setPaymentMethod] = useState("cod");
   const [shippingFee, setShippingFee] = useState(0);
+  const [shippingProvider, setShippingProvider] = useState("");
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -380,13 +389,16 @@ function CheckoutPage() {
         const quote = await getShippingQuote({
           subtotal,
           city: form.city,
+          item_count: cart?.total_items || 1,
         });
         if (!ignore) {
           setShippingFee(Number(quote.shipping_fee || 0));
+          setShippingProvider(quote.provider_label || "");
         }
       } catch {
         if (!ignore) {
           setShippingFee(0);
+          setShippingProvider("");
         }
       }
     }
@@ -531,14 +543,22 @@ function CheckoutPage() {
         voucher_code: voucherCode,
       });
       notifyCartUpdated();
+
+      if (order.payment_url) {
+        window.location.href = order.payment_url;
+        return;
+      }
+
       navigate(`/orders/success/${order.id}`);
     } catch (err) {
-      const detail = err?.response?.data?.detail;
-      setError(
-        typeof detail === "string"
-          ? detail
+      const message = getApiErrorMessage(
+        err,
+        err?.response?.status >= 500
+          ? "Lỗi máy chủ khi tạo đơn. Vui lòng thử lại sau vài giây."
           : "Không thể tạo đơn hàng. Vui lòng kiểm tra giỏ hàng.",
       );
+
+      setError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -733,12 +753,7 @@ function CheckoutPage() {
                     })}
                   </div>
 
-                  {paymentMethod === "transfer" && (
-                    <p className="checkout-transfer-note">
-                      Sau khi đặt hàng, bạn nhận email xác nhận kèm thông tin
-                      chuyển khoản.
-                    </p>
-                  )}
+
                 </CheckoutSection>
               </form>
 
@@ -752,6 +767,7 @@ function CheckoutPage() {
                   hasFreeShipping={hasFreeShipping}
                   shippingRemaining={shippingRemaining}
                   shippingFee={shippingFee}
+                  shippingProvider={shippingProvider}
                   paymentMethod={paymentMethod}
                   isSubmitting={isSubmitting}
                 />
@@ -776,6 +792,7 @@ function CheckoutPage() {
                   hasFreeShipping={hasFreeShipping}
                   shippingRemaining={shippingRemaining}
                   shippingFee={shippingFee}
+                  shippingProvider={shippingProvider}
                   paymentMethod={paymentMethod}
                   isSubmitting={isSubmitting}
                   showActions={false}

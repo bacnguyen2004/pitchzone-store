@@ -7,6 +7,7 @@ import {
   updateAdminBrand,
 } from "../api/admin";
 import AdminAlert from "../components/admin/AdminAlert";
+import AdminDataSection from "../components/admin/AdminDataSection";
 import AdminConfirmDialog from "../components/admin/AdminConfirmDialog";
 import AdminImageField from "../components/admin/AdminImageField";
 import AdminLoading from "../components/admin/AdminLoading";
@@ -152,20 +153,21 @@ function AdminBrandsPage() {
       {message && <AdminAlert tone="success">{message}</AdminAlert>}
       {error && <AdminAlert tone="error">{error}</AdminAlert>}
 
-      <AdminToolbar
-        search={search}
-        onSearchChange={handleSearchChange}
-        searchPlaceholder="Tìm thương hiệu..."
-        countLabel={`${count} thương hiệu`}
-        onRefresh={load}
-        isRefreshing={status === "loading"}
-      />
+      <AdminDataSection>
+        <AdminToolbar
+          search={search}
+          onSearchChange={handleSearchChange}
+          searchPlaceholder="Tìm thương hiệu..."
+          countLabel={`${count} thương hiệu`}
+          onRefresh={load}
+          isRefreshing={status === "loading"}
+        />
 
-      {status === "loading" && <AdminLoading rows={4} columns={4} />}
+        {status === "loading" && <AdminLoading rows={4} columns={4} />}
 
-      {status === "success" && (
-        <>
-          <AdminTable>
+        {status === "success" && (
+          <>
+            <AdminTable>
             <thead>
               <tr>
                 <th className="is-media">Logo</th>
@@ -221,7 +223,8 @@ function AdminBrandsPage() {
             onPageSizeChange={handlePageSizeChange}
           />
         </>
-      )}
+        )}
+      </AdminDataSection>
 
       <AdminModal
         open={modalOpen}

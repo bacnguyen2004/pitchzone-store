@@ -44,7 +44,7 @@ export const aboutValues = [
   {
     title: "Mua sắm dễ dàng",
     description:
-      "Lọc theo danh mục, thương hiệu, giá. Thêm giỏ, thanh toán COD hoặc chuyển khoản — mượt trên mobile.",
+      "Lọc theo danh mục, thương hiệu, giá. Thêm giỏ, thanh toán COD hoặc VNPay — mượt trên mobile.",
     Icon: SparklesIcon,
   },
   {
@@ -131,7 +131,7 @@ export const aboutProcess = [
   {
     step: "02",
     title: "Đặt hàng",
-    description: "Thêm giỏ, đăng nhập, xác nhận địa chỉ và chọn COD hoặc chuyển khoản.",
+    description: "Thêm giỏ, đăng nhập, xác nhận địa chỉ và chọn COD hoặc VNPay.",
     Icon: PackageIcon,
   },
   {

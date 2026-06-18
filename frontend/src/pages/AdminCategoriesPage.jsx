@@ -7,6 +7,7 @@ import {
   updateAdminCategory,
 } from "../api/admin";
 import AdminAlert from "../components/admin/AdminAlert";
+import AdminDataSection from "../components/admin/AdminDataSection";
 import AdminConfirmDialog from "../components/admin/AdminConfirmDialog";
 import AdminImageField from "../components/admin/AdminImageField";
 import AdminLoading from "../components/admin/AdminLoading";
@@ -156,20 +157,21 @@ function AdminCategoriesPage() {
       {message && <AdminAlert tone="success">{message}</AdminAlert>}
       {error && <AdminAlert tone="error">{error}</AdminAlert>}
 
-      <AdminToolbar
-        search={search}
-        onSearchChange={handleSearchChange}
-        searchPlaceholder="Tìm danh mục..."
-        countLabel={`${count} danh mục`}
-        onRefresh={load}
-        isRefreshing={status === "loading"}
-      />
+      <AdminDataSection>
+        <AdminToolbar
+          search={search}
+          onSearchChange={handleSearchChange}
+          searchPlaceholder="Tìm danh mục..."
+          countLabel={`${count} danh mục`}
+          onRefresh={load}
+          isRefreshing={status === "loading"}
+        />
 
-      {status === "loading" && <AdminLoading rows={4} columns={4} />}
+        {status === "loading" && <AdminLoading rows={4} columns={4} />}
 
-      {status === "success" && (
-        <>
-          <AdminTable>
+        {status === "success" && (
+          <>
+            <AdminTable>
             <thead>
               <tr>
                 <th className="is-media">Ảnh</th>
@@ -225,7 +227,8 @@ function AdminCategoriesPage() {
             onPageSizeChange={handlePageSizeChange}
           />
         </>
-      )}
+        )}
+      </AdminDataSection>
 
       <AdminModal
         open={modalOpen}
