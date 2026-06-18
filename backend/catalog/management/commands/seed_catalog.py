@@ -5,7 +5,7 @@ from django.core.management.base import BaseCommand
 from django.utils.text import slugify
 
 from catalog.models import Brand, Category, Product, ProductImage, ProductVariant
-from catalog.services.product_image_generator import build_product_image
+from catalog.services.product_image_fetch import fetch_product_image_bytes
 
 
 class Command(BaseCommand):
@@ -578,16 +578,17 @@ class Command(BaseCommand):
             if product.images.exists():
                 continue
 
-            image_bytes = build_product_image(
-                product_name=product.name,
-                brand_slug=product.brand.slug if product.brand else "football",
-                brand_name=product.brand.name if product.brand else "Football",
-                category_slug=product.category.slug,
-                product_slug=product.slug,
-            )
+            fetched = fetch_product_image_bytes(product)
+            if not fetched:
+                self.stdout.write(
+                    self.style.WARNING(f"Skip image for {product.slug} (Pexels failed).")
+                )
+                continue
+
+            image_bytes, _source_url = fetched
             ProductImage.objects.create(
                 product=product,
-                image=ContentFile(image_bytes, name=f"{product.slug}.png"),
+                image=ContentFile(image_bytes, name=f"{product.slug}.jpg"),
                 alt_text=product.name,
                 is_main=True,
             )

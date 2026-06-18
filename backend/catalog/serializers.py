@@ -2,6 +2,10 @@ from django.utils.text import slugify as django_slugify
 from rest_framework import serializers
 
 from catalog.services.pricing import get_product_pricing, get_variant_pricing
+from catalog.services.product_image_fetch import (
+    absolute_media_url,
+    resolve_display_image_url,
+)
 from .models import (
     Brand,
     Category,
@@ -46,18 +50,6 @@ def get_or_create_default_variant(product):
         stock=0,
         is_active=product.is_active,
     )
-
-
-def absolute_media_url(request, file_field):
-    if not file_field:
-        return None
-
-    url = file_field.url
-    if url.startswith(("http://", "https://")):
-        return url
-    if request:
-        return request.build_absolute_uri(url)
-    return url
 
 
 def sync_main_product_image(product, image_file):
@@ -158,7 +150,11 @@ class ProductImageSerializer(serializers.ModelSerializer):
         fields = ("id", "image", "alt_text", "is_main")
 
     def get_image(self, obj):
-        return absolute_media_url(self.context.get("request"), obj.image)
+        return resolve_display_image_url(
+            self.context.get("request"),
+            obj.product,
+            obj.image,
+        )
 
 
 class ProductVariantSerializer(serializers.ModelSerializer):
@@ -261,8 +257,16 @@ class ProductSerializer(serializers.ModelSerializer):
     def get_main_image(self, obj):
         image = obj.images.filter(is_main=True).first() or obj.images.first()
         if not image:
-            return None
-        return absolute_media_url(self.context.get("request"), image.image)
+            return resolve_display_image_url(
+                self.context.get("request"),
+                obj,
+                None,
+            )
+        return resolve_display_image_url(
+            self.context.get("request"),
+            obj,
+            image.image,
+        )
 
     def get_price(self, obj):
         return self._pricing(obj)["effective_price"]

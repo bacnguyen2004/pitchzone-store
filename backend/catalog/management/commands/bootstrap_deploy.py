@@ -4,6 +4,7 @@ from django.core.management import call_command
 from django.core.management.base import BaseCommand
 
 from catalog.models import Product, ProductImage
+from catalog.services.product_image_fetch import is_placeholder_image
 
 
 class Command(BaseCommand):
@@ -49,9 +50,10 @@ class Command(BaseCommand):
             "yes",
             "force",
         }
-        has_placeholders = ProductImage.objects.filter(
-            image__iendswith=".png",
-        ).exists()
+        has_placeholders = any(
+            is_placeholder_image(image.image)
+            for image in ProductImage.objects.all()[:200]
+        )
 
         if not fix_flag and not has_placeholders:
             return
